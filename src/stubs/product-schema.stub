@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use WizcodePl\LunarProductSchemas\ProductSchema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        // ProductSchema::productTypes([
+        //     't-shirts' => 'T-shirts',
+        // ])
+        //     ->attribute(
+        //         handle: 'size',
+        //         name: ['en' => 'Size', 'pl' => 'Rozmiar'],
+        //         group: 'specifications',
+        //         groupName: ['en' => 'Specifications', 'pl' => 'Specyfikacja'],
+        //         filterable: true,
+        //         required: true,
+        //     );
+    }
+
+    public function down(): void
+    {
+        //
+    }
+};

@@ -1,0 +1,115 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sqlite:
+    name: SQLite · PHP ${{ matrix.php }} · Lunar ${{ matrix.lunar }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Pivot on Lunar version. Laravel/Testbench follow whatever Lunar's
+        # constraint resolves to — we don't pin them ourselves.
+        php: ['8.2', '8.3', '8.4']
+        lunar: ['^1.3']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: bcmath, exif, intl, pdo_sqlite, sqlite3
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-lunar${{ matrix.lunar }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-php${{ matrix.php }}-lunar${{ matrix.lunar }}-
+
+      - name: Install dependencies
+        run: |
+          composer require "lunarphp/core:${{ matrix.lunar }}" --no-interaction --no-update
+          composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+
+      - name: Run tests
+        run: vendor/bin/phpunit
+
+  mysql:
+    name: MySQL 8 · PHP 8.3 · Lunar ^1.3
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lunar_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: lunar_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, exif, intl, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-mysql-php8.3-lunar1.3-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-mysql-php8.3-lunar1.3-
+
+      - name: Install dependencies
+        run: |
+          composer require "lunarphp/core:^1.3" --no-interaction --no-update
+          composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..60}; do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 -u root -proot --silent 2>/dev/null; then
+              echo "MySQL is up"
+              mysql -h 127.0.0.1 -P 3306 -u root -proot -e "SELECT VERSION();"
+              exit 0
+            fi
+            echo "Waiting for MySQL... ($i)"
+            sleep 1
+          done
+          echo "MySQL did not become ready in time"
+          docker ps -a
+          exit 1
+
+      - name: Run tests
+        run: vendor/bin/phpunit --display-errors --display-warnings

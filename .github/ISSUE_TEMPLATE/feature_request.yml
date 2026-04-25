@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest a new capability for the package.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What real workflow are you trying to support? Why is the current API insufficient?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: Sketch the API as you'd like to use it from a schema definition file.
+      render: php
+      placeholder: |
+        ProductSchema::productType('t-shirts')
+            ->attribute('size')
+            ->newFeature(...);
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you tried or rejected, and why.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope check
+      description: |
+        This package is deliberately narrow — product-level `Attribute`, `AttributeGroup`, and `ProductType ↔ Attribute` only. Variant axes (`ProductOption` / `ProductOptionValue`) are out of scope. Does your request fit?
