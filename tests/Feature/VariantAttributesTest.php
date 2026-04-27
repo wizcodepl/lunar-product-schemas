@@ -37,6 +37,99 @@ class VariantAttributesTest extends TestCase
         $this->assertFalse((bool) $attr->system);
     }
 
+    public function test_variant_attribute_explicit_flags_persist(): void
+    {
+        ProductSchema::productType('t-shirts')->variantAttribute(
+            'lead_time_days',
+            filterable: true,
+            searchable: false,
+            required: true,
+        );
+
+        $attr = Attribute::where('handle', 'lead_time_days')
+            ->where('attribute_type', ProductVariant::morphName())
+            ->first();
+
+        $this->assertTrue((bool) $attr->filterable);
+        $this->assertFalse((bool) $attr->searchable);
+        $this->assertTrue((bool) $attr->required);
+    }
+
+    public function test_variant_attribute_tristate_leaves_existing_flags_alone(): void
+    {
+        ProductSchema::productType('t-shirts')->variantAttribute(
+            'lead_time_days',
+            filterable: true,
+            required: true,
+        );
+
+        // Re-define with only `searchable` specified — filterable/required must keep prior values.
+        ProductSchema::productType('t-shirts')->variantAttribute(
+            'lead_time_days',
+            searchable: false,
+        );
+
+        $attr = Attribute::where('handle', 'lead_time_days')
+            ->where('attribute_type', ProductVariant::morphName())
+            ->first();
+
+        $this->assertTrue((bool) $attr->filterable, 'filterable should be preserved');
+        $this->assertTrue((bool) $attr->required, 'required should be preserved');
+        $this->assertFalse((bool) $attr->searchable, 'searchable was explicitly set to false');
+    }
+
+    public function test_variant_attribute_explicit_false_overrides_existing_true(): void
+    {
+        ProductSchema::productType('t-shirts')->variantAttribute('lead_time_days', filterable: true);
+        ProductSchema::productType('t-shirts')->variantAttribute('lead_time_days', filterable: false);
+
+        $attr = Attribute::where('handle', 'lead_time_days')
+            ->where('attribute_type', ProductVariant::morphName())
+            ->first();
+
+        $this->assertFalse((bool) $attr->filterable);
+    }
+
+    public function test_variant_attribute_builder_toggles_flags(): void
+    {
+        ProductSchema::productType('t-shirts')->variantAttribute('lead_time_days');
+
+        ProductSchema::variantAttribute('lead_time_days')
+            ->filterable(true)
+            ->searchable(false)
+            ->required(true);
+
+        $attr = Attribute::where('handle', 'lead_time_days')
+            ->where('attribute_type', ProductVariant::morphName())
+            ->first();
+
+        $this->assertTrue((bool) $attr->filterable);
+        $this->assertFalse((bool) $attr->searchable);
+        $this->assertTrue((bool) $attr->required);
+    }
+
+    public function test_variant_attribute_builder_does_not_collide_with_product_typed_attribute(): void
+    {
+        // Same handle on both layers — flags must be independent.
+        ProductSchema::productType('t-shirts')
+            ->attribute('notes', filterable: true)
+            ->variantAttribute('notes', filterable: false);
+
+        ProductSchema::variantAttribute('notes')->required(true);
+
+        $productAttr = Attribute::where('handle', 'notes')
+            ->where('attribute_type', Product::morphName())
+            ->first();
+        $variantAttr = Attribute::where('handle', 'notes')
+            ->where('attribute_type', ProductVariant::morphName())
+            ->first();
+
+        $this->assertTrue((bool) $productAttr->filterable, 'product layer flag untouched');
+        $this->assertFalse((bool) $productAttr->required, 'product layer required not flipped');
+        $this->assertTrue((bool) $variantAttr->required, 'variant layer flipped');
+        $this->assertFalse((bool) $variantAttr->filterable, 'variant layer kept its own filterable');
+    }
+
     public function test_variant_attribute_appears_under_variant_attributes_relation_only(): void
     {
         $type = ProductSchema::productType('t-shirts')
