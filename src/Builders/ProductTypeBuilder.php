@@ -205,12 +205,15 @@ class ProductTypeBuilder
         ?bool $filterable,
         ?bool $required,
     ): self {
+        // Lunar's `lunar_attribute_groups.handle` has a global UNIQUE constraint — it is NOT
+        // scoped by `attributable_type`. So we look up by handle alone and reuse whatever
+        // group already exists; `attributable_type` is only set on first create. Without this
+        // reuse, defining a variant attribute in the same logical group as a product attribute
+        // (e.g. both in 'general') would crash with a UniqueConstraintViolationException.
         $attributeGroup = AttributeGroup::firstOrCreate(
+            ['handle' => $group],
             [
-                'handle' => $group,
                 'attributable_type' => $attributableType,
-            ],
-            [
                 'name' => self::localized($groupName ?? Str::headline($group)),
                 'position' => self::nextGroupPosition(),
             ],

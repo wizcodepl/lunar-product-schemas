@@ -6,6 +6,7 @@ namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
 use Lunar\FieldTypes\Text;
 use Lunar\Models\Attribute;
+use Lunar\Models\AttributeGroup;
 use Lunar\Models\Product;
 use Lunar\Models\ProductType;
 use Lunar\Models\ProductVariant;
@@ -373,5 +374,53 @@ class VariantAttributesTest extends TestCase
             $type = ProductType::where('handle', $handle)->first();
             $this->assertFalse($type->mappedAttributes()->where('attribute_id', $attr->id)->exists());
         }
+    }
+
+    public function test_variant_attribute_reuses_existing_group_when_handle_matches_product_group(): void
+    {
+        // Lunar's lunar_attribute_groups.handle has a global UNIQUE constraint (not scoped by
+        // attributable_type), so a variant attribute pointed at the same group handle as an
+        // existing product-level group must reuse that group rather than try to create a sibling.
+        ProductSchema::productType('t-shirts')
+            ->attribute('material', name: ['en' => 'Material'], group: 'general', groupName: ['en' => 'General']);
+
+        ProductSchema::productType('t-shirts')
+            ->variantAttribute('manufacturer_sku', name: ['en' => 'Manufacturer SKU'], group: 'general');
+
+        $this->assertSame(1, AttributeGroup::where('handle', 'general')->count(), 'expected exactly one group with handle "general"');
+
+        $material = Attribute::where('handle', 'material')->first();
+        $manufacturerSku = Attribute::where('handle', 'manufacturer_sku')->first();
+        $groupId = AttributeGroup::where('handle', 'general')->value('id');
+
+        $this->assertSame($groupId, $material->attribute_group_id);
+        $this->assertSame($groupId, $manufacturerSku->attribute_group_id);
+    }
+
+    public function test_product_attribute_reuses_existing_group_created_by_variant_attribute(): void
+    {
+        // Inverse direction — variant attribute creates the group first, then a product-level
+        // attribute pointed at the same handle must also reuse it.
+        ProductSchema::productType('t-shirts')
+            ->variantAttribute('manufacturer_sku', name: ['en' => 'Manufacturer SKU'], group: 'general');
+
+        ProductSchema::productType('t-shirts')
+            ->attribute('material', name: ['en' => 'Material'], group: 'general');
+
+        $this->assertSame(1, AttributeGroup::where('handle', 'general')->count());
+    }
+
+    public function test_group_attributable_type_set_on_first_create_is_preserved(): void
+    {
+        // Whichever side creates the group first wins for `attributable_type`. It's an
+        // informational marker on the row — not a uniqueness key — so we don't try to flip it.
+        ProductSchema::productType('t-shirts')
+            ->attribute('material', group: 'general');
+
+        ProductSchema::productType('t-shirts')
+            ->variantAttribute('manufacturer_sku', group: 'general');
+
+        $group = AttributeGroup::where('handle', 'general')->first();
+        $this->assertSame(Product::morphName(), $group->attributable_type);
     }
 }

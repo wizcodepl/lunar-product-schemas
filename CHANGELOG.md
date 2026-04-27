@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-04-27
+
+### Fixed
+- `variantAttribute()` no longer crashes with `UniqueConstraintViolationException` when the supplied `group` handle already exists for product-level attributes (or vice versa). Lunar's `lunar_attribute_groups.handle` has a **global** unique constraint, not scoped by `attributable_type`; the package now resolves groups by handle alone and reuses any existing row, only setting `attributable_type` on first create.
+
+### Added
+- 3 new tests covering cross-attributable-type group reuse: variant↔product groups under the same handle are shared; the original `attributable_type` set on first create is preserved.
+
 ## [1.1.2] - 2026-04-27
 
 ### Added
