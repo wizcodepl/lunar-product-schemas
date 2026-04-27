@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-27
+
+### Added
+- `ProductTypeBuilder::variantAttribute()` — define variant-level attributes (`attribute_type='variant'`), values land in `ProductVariant.attribute_data` JSON. Use cases: lead time, batch number, pantone code, manufacturer SKU.
+- `ProductTypeBuilder::dropVariantAttribute()` — per-type drop with chunked cleanup of `ProductVariant.attribute_data` keys.
+- `ProductTypeBuilder::syncVariantAttributes()` — authoritative variant-attribute set per type, independent of `syncAttributes()`.
+- `ProductTypesBuilder::variantAttribute()`, `dropVariantAttribute()`, `syncVariantAttributes()` — fan-out across multiple types.
+- `ProductSchema::variantAttribute()` — global builder for variant-level attribute operations (rename, flag toggles).
+- 15 new feature tests covering variant-attribute lifecycle on both single-type and multi-type builders.
+
+### Changed
+- `ProductSchema::dropAttribute()` and `AttributeBuilder::rename()` now auto-detect `attribute_type` and clean up the correct `attribute_data` JSON layer (Product vs ProductVariant).
+- `AttributeBuilder` constructor accepts an optional second argument `$attributableType` so the same class can drive both product-level and variant-level operations.
+
 ## [1.0.0] - 2026-04-25
 
 ### Added
@@ -18,5 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled migration to add the `handle` column to `lunar_product_types` (Lunar core ships without it).
 - Full feature test suite covering builders, static API, and console commands (Orchestra Testbench, runs against in-memory SQLite locally and MySQL 8 in CI).
 
-[Unreleased]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/wizcodepl/lunar-product-schemas/releases/tag/v1.0.0

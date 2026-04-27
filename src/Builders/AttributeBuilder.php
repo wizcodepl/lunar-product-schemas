@@ -7,16 +7,21 @@ namespace WizcodePl\LunarProductSchemas\Builders;
 use Illuminate\Support\Collection;
 use Lunar\Models\Attribute;
 use Lunar\Models\Product;
+use Lunar\Models\ProductVariant;
 
 class AttributeBuilder
 {
     private Attribute $attribute;
 
-    public function __construct(string $handle)
+    private string $attributableType;
+
+    public function __construct(string $handle, ?string $attributableType = null)
     {
+        $this->attributableType = $attributableType ?? Product::morphName();
+
         $this->attribute = Attribute::query()
             ->where('handle', $handle)
-            ->where('attribute_type', Product::morphName())
+            ->where('attribute_type', $this->attributableType)
             ->firstOrFail();
     }
 
@@ -54,7 +59,8 @@ class AttributeBuilder
 
     /**
      * Rename the attribute handle and migrate any values stored under the old key
-     * inside products' attribute_data JSON.
+     * inside the appropriate `attribute_data` JSON layer (Product for product-level,
+     * ProductVariant for variant-level).
      */
     public function rename(string $newHandle): self
     {
@@ -65,18 +71,11 @@ class AttributeBuilder
 
         $this->attribute->update(['handle' => $newHandle]);
 
-        Product::query()->chunkById(500, function ($products) use ($oldHandle, $newHandle) {
-            foreach ($products as $product) {
-                $data = $product->attribute_data;
-                if ($data?->has($oldHandle)) {
-                    $value = $data->get($oldHandle);
-                    $data->forget($oldHandle);
-                    $data->put($newHandle, $value);
-                    $product->attribute_data = $data;
-                    $product->saveQuietly();
-                }
-            }
-        });
+        if ($this->attributableType === ProductVariant::morphName()) {
+            $this->renameKeysInVariants($oldHandle, $newHandle);
+        } else {
+            $this->renameKeysInProducts($oldHandle, $newHandle);
+        }
 
         return $this;
     }
@@ -91,5 +90,37 @@ class AttributeBuilder
         $this->attribute->update([$column => $value]);
 
         return $this;
+    }
+
+    private function renameKeysInProducts(string $oldHandle, string $newHandle): void
+    {
+        Product::query()->chunkById(500, function ($products) use ($oldHandle, $newHandle) {
+            foreach ($products as $product) {
+                $data = $product->attribute_data;
+                if ($data?->has($oldHandle)) {
+                    $value = $data->get($oldHandle);
+                    $data->forget($oldHandle);
+                    $data->put($newHandle, $value);
+                    $product->attribute_data = $data;
+                    $product->saveQuietly();
+                }
+            }
+        });
+    }
+
+    private function renameKeysInVariants(string $oldHandle, string $newHandle): void
+    {
+        ProductVariant::query()->chunkById(500, function ($variants) use ($oldHandle, $newHandle) {
+            foreach ($variants as $variant) {
+                $data = $variant->attribute_data;
+                if ($data?->has($oldHandle)) {
+                    $value = $data->get($oldHandle);
+                    $data->forget($oldHandle);
+                    $data->put($newHandle, $value);
+                    $variant->attribute_data = $data;
+                    $variant->saveQuietly();
+                }
+            }
+        });
     }
 }

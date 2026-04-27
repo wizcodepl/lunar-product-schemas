@@ -63,6 +63,32 @@ class ProductTypesBuilder
         return $this;
     }
 
+    public function variantAttribute(
+        string $handle,
+        string|array|null $name = null,
+        ?string $type = null,
+        string $group = 'variant_spec',
+        string|array|null $groupName = null,
+        ?bool $searchable = null,
+        ?bool $filterable = null,
+        ?bool $required = null,
+    ): self {
+        foreach ($this->builders as $builder) {
+            $builder->variantAttribute(
+                handle: $handle,
+                name: $name,
+                type: $type,
+                group: $group,
+                groupName: $groupName,
+                searchable: $searchable,
+                filterable: $filterable,
+                required: $required,
+            );
+        }
+
+        return $this;
+    }
+
     public function dropAttribute(string $handle): self
     {
         foreach ($this->builders as $builder) {
@@ -72,10 +98,28 @@ class ProductTypesBuilder
         return $this;
     }
 
+    public function dropVariantAttribute(string $handle): self
+    {
+        foreach ($this->builders as $builder) {
+            $builder->dropVariantAttribute($handle);
+        }
+
+        return $this;
+    }
+
     public function syncAttributes(array $keep): self
     {
         foreach ($this->builders as $builder) {
             $builder->syncAttributes($keep);
+        }
+
+        return $this;
+    }
+
+    public function syncVariantAttributes(array $keep): self
+    {
+        foreach ($this->builders as $builder) {
+            $builder->syncVariantAttributes($keep);
         }
 
         return $this;

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Lunar\Models\Attribute;
 use Lunar\Models\Product;
 use Lunar\Models\ProductType;
+use Lunar\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\Builders\AttributeBuilder;
 use WizcodePl\LunarProductSchemas\Builders\ProductTypeBuilder;
 use WizcodePl\LunarProductSchemas\Builders\ProductTypesBuilder;
@@ -18,12 +19,12 @@ use WizcodePl\LunarProductSchemas\Builders\ProductTypesBuilder;
  * Use inside Laravel migrations:
  *
  *   ProductSchema::productType('t-shirts', 'T-shirts')
- *       ->attribute('size', filterable: true, required: true)
- *       ->attribute('color', filterable: true, searchable: true)
+ *       ->attribute('material', filterable: true, required: true)   // product-level
+ *       ->variantAttribute('lead_time_days')                        // variant-level
  *       ->dropAttribute('legacy_field');
  *
- *   ProductSchema::attribute('color')->filterable(true);
- *   ProductSchema::dropAttribute('legacy_field');
+ *   ProductSchema::attribute('material')->filterable(true);
+ *   ProductSchema::dropAttribute('legacy_field');                   // detects type and cleans the right JSON layer
  */
 class ProductSchema
 {
@@ -47,28 +48,41 @@ class ProductSchema
     }
 
     /**
-     * Get a builder for global attribute operations (toggle flags, rename).
+     * Get a builder for global product-level attribute operations (toggle flags, rename).
      */
     public static function attribute(string $handle): AttributeBuilder
     {
-        return new AttributeBuilder($handle);
+        return new AttributeBuilder($handle, Product::morphName());
     }
 
     /**
-     * Drop an attribute from every product type and strip its values from products' attribute_data JSON.
+     * Get a builder for global variant-level attribute operations (toggle flags, rename).
+     */
+    public static function variantAttribute(string $handle): AttributeBuilder
+    {
+        return new AttributeBuilder($handle, ProductVariant::morphName());
+    }
+
+    /**
+     * Drop an attribute (product-level or variant-level — auto-detected) from every product type
+     * and strip its values from the corresponding `attribute_data` JSON layer.
      */
     public static function dropAttribute(string $handle): void
     {
         $attribute = Attribute::query()
             ->where('handle', $handle)
-            ->where('attribute_type', Product::morphName())
+            ->whereIn('attribute_type', [Product::morphName(), ProductVariant::morphName()])
             ->first();
 
         if (! $attribute) {
             return;
         }
 
-        self::stripAttributeFromProducts($handle);
+        if ($attribute->attribute_type === ProductVariant::morphName()) {
+            self::stripAttributeFromVariants($handle);
+        } else {
+            self::stripAttributeFromProducts($handle);
+        }
 
         // Lunar uses a polymorphic pivot (lunar_attributables) that lacks cascade.
         // Wipe pivot rows manually before deleting the attribute itself.
@@ -96,6 +110,20 @@ class ProductSchema
                     $data->forget($handle);
                     $product->attribute_data = $data;
                     $product->saveQuietly();
+                }
+            }
+        });
+    }
+
+    private static function stripAttributeFromVariants(string $handle): void
+    {
+        ProductVariant::query()->chunkById(500, function ($variants) use ($handle) {
+            foreach ($variants as $variant) {
+                $data = $variant->attribute_data;
+                if ($data?->has($handle)) {
+                    $data->forget($handle);
+                    $variant->attribute_data = $data;
+                    $variant->saveQuietly();
                 }
             }
         });
