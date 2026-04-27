@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-04-27
+
+### Documentation
+- README: expanded the "Variant-level attributes" section with explicit examples of `filterable` / `searchable` / `required` flags on `variantAttribute()` and a reminder of the tristate (`null` = leave alone) semantics.
+
 ## [1.1.0] - 2026-04-27
 
 ### Added
@@ -32,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled migration to add the `handle` column to `lunar_product_types` (Lunar core ships without it).
 - Full feature test suite covering builders, static API, and console commands (Orchestra Testbench, runs against in-memory SQLite locally and MySQL 8 in CI).
 
-[Unreleased]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/wizcodepl/lunar-product-schemas/releases/tag/v1.0.0

@@ -179,6 +179,30 @@ ProductSchema::productType('t-shirts')
     ->variantAttribute('pantone_code',     name: ['en' => 'Pantone code']);
 ```
 
+`variantAttribute()` takes the same flags as `attribute()` — `filterable`, `searchable`, `required` — wired through to the underlying `Attribute` row:
+
+```php
+ProductSchema::productType('t-shirts')
+    ->variantAttribute(
+        handle: 'manufacturer_sku',
+        name: ['en' => 'Manufacturer SKU'],
+        searchable: true,
+        required: true,                              // every variant must carry it
+    )
+    ->variantAttribute(
+        handle: 'lead_time_days',
+        name: ['en' => 'Lead time (days)'],
+        filterable: true,                            // facet on the storefront
+    )
+    ->variantAttribute(
+        handle: 'pantone_code',
+        name: ['en' => 'Pantone code'],
+        searchable: false,                           // internal, hide from search index
+    );
+```
+
+Same tristate semantics: pass `null` (default) to leave an existing flag untouched, `true`/`false` to force.
+
 These show up under the **"Variant Attributes"** tab in Lunar admin (Product Types → [t-shirts]).
 
 > **Note:** if you want customers to *pick* a value (Size: S/M/L, Color: Red/Blue), that's a `ProductOption` — a different Lunar mechanism not handled here. See **Out of scope** below.
