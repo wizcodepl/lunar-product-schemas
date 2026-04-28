@@ -37,6 +37,8 @@ class ProductSchemaServiceProvider extends ServiceProvider
         // Tracking-table migration runs as part of `php artisan migrate`.
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'lunar-product-schemas');
+
         $this->publishes([
             __DIR__.'/../config/lunar-product-schemas.php' => config_path('lunar-product-schemas.php'),
         ], 'lunar-product-schemas-config');

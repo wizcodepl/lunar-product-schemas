@@ -344,6 +344,53 @@ Rename the product type itself.
 - `name(string $name, string $locale = 'en')`
 - `rename(string $newHandle)` — also migrates `attribute_data` JSON keys (chunked) on the correct layer (Product or ProductVariant) based on how the builder was constructed.
 
+## Schema Health (Filament)
+
+A bundled Filament admin page surfaces **how complete your catalog actually is** against the `required` attributes you've declared. Per ProductType you see how many products have all their required values, how many are partial, how many have nothing — plus a per-attribute breakdown of where the gaps are.
+
+Opt in by registering the plugin in your `PanelProvider`:
+
+```php
+use WizcodePl\LunarProductSchemas\Filament\LunarProductSchemasPlugin;
+
+public function panel(Panel $panel): Panel
+{
+    return $panel->plugin(LunarProductSchemasPlugin::make());
+}
+```
+
+A new **Catalog → Schema Health** page appears with cards per ProductType:
+
+- Total products
+- Complete / partial / missing counts
+- Complete-percentage bar
+- Per-attribute gap breakdown ("23 products missing `material`, 8 missing `gtin`")
+- Click any attribute → drill-down list of products lacking it
+
+It uses only what Lunar already exposes — the `required` flag on `Attribute` and `attribute_data` on `Product`. No new tables, no new concepts, no extra configuration. The moment you mark an attribute `required: true` (via this package or otherwise), it lights up in the dashboard.
+
+If you don't install Filament or don't register the plugin, the rest of the package works as before — the report data is also available programmatically:
+
+```php
+use WizcodePl\LunarProductSchemas\Reports\SchemaHealthReport;
+
+$rows = app(SchemaHealthReport::class)->compute();
+foreach ($rows as $row) {
+    $row->productType;                  // Lunar ProductType
+    $row->totalProducts;                // int
+    $row->complete;                     // int
+    $row->partial;                      // int
+    $row->missing;                      // int
+    $row->completePercentage();         // float
+    $row->requiredAttributeHandles;     // ['material', 'gtin']
+    $row->missingByAttribute;           // ['material' => 23, 'gtin' => 8]
+}
+
+// Drill-down for a specific (type, attribute) pair:
+$incomplete = app(SchemaHealthReport::class)
+    ->productsMissing('t-shirts', 'material');
+```
+
 ## Out of scope
 
 This package covers **`Attribute` schema** on both product and variant layers. It does **not** wrap:

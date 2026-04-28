@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-28
+
+### Added
+- **Schema Health** Filament page (opt-in via `LunarProductSchemasPlugin`). Shows per-ProductType completeness against the `required` attributes you've declared: total products, complete / partial / missing counts, complete-percentage bar, and a per-attribute breakdown of where the gaps are. Click any attribute → drill-down list of incomplete products.
+- `SchemaHealthReport` service exposing the same data programmatically via `compute()`, `forType($handle)`, and `productsMissing($typeHandle, $attributeHandle)`. Returns `ProductTypeHealth` value objects.
+- Filament moved to `require-dev` and listed under `suggest`. The package's runtime API and CLI commands keep working without it; only the Schema Health admin page is gated behind the plugin.
+- 10 new tests covering the report service against real ProductType / Attribute / Product fixtures (83 / 193 total, all green).
+
 ## [1.1.3] - 2026-04-27
 
 ### Fixed
@@ -50,7 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled migration to add the `handle` column to `lunar_product_types` (Lunar core ships without it).
 - Full feature test suite covering builders, static API, and console commands (Orchestra Testbench, runs against in-memory SQLite locally and MySQL 8 in CI).
 
-[Unreleased]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.3...v1.2.0
+[1.1.3]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.0.0...v1.1.0
