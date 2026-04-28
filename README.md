@@ -346,7 +346,7 @@ Rename the product type itself.
 
 ## Schema Health (Filament)
 
-A bundled Filament admin page surfaces **how complete your catalog actually is** against the `required` attributes you've declared. Per ProductType you see how many products have all their required values, how many are partial, how many have nothing — plus a per-attribute breakdown of where the gaps are.
+A bundled Filament admin page surfaces **how complete your catalog actually is** against the `required` attributes you've declared. Lives under **Catalog → Products → Schema Health** (sibling of *Product Types*), so it's right where someone looking at the catalog model would expect it.
 
 Opt in by registering the plugin in your `PanelProvider`:
 
@@ -359,13 +359,16 @@ public function panel(Panel $panel): Panel
 }
 ```
 
-A new **Catalog → Schema Health** page appears with cards per ProductType:
+What you get:
 
-- Total products
-- Complete / partial / missing counts
-- Complete-percentage bar
-- Per-attribute gap breakdown ("23 products missing `material`, 8 missing `gtin`")
-- Click any attribute → drill-down list of products lacking it
+- **Header stats widget** — three native Filament `StatsOverviewWidget` cards aggregating the whole catalog: Complete / Partial / Missing.
+- **Filament Table** of every ProductType with: name, total products, completeness %, complete / partial / missing counts. Searchable, sortable, paginated.
+- **Click a row** → slide-over with the per-type breakdown:
+  - Three stat boxes for that type
+  - Progress bar with exact %
+  - Required-fields list
+  - Per-attribute gap breakdown ("23 products missing `material`, 8 missing `gtin`")
+  - Each gap is **collapsible** — expand to see the actual list of products that lack the field
 
 It uses only what Lunar already exposes — the `required` flag on `Attribute` and `attribute_data` on `Product`. No new tables, no new concepts, no extra configuration. The moment you mark an attribute `required: true` (via this package or otherwise), it lights up in the dashboard.
 
@@ -386,10 +389,33 @@ foreach ($rows as $row) {
     $row->missingByAttribute;           // ['material' => 23, 'gtin' => 8]
 }
 
+// Health for a single ProductType by handle:
+$health = app(SchemaHealthReport::class)->forType('t-shirts');
+
 // Drill-down for a specific (type, attribute) pair:
 $incomplete = app(SchemaHealthReport::class)
     ->productsMissing('t-shirts', 'material');
 ```
+
+## Translations
+
+The Filament page ships with **English (default) and Polish** out of the box. The widget, table columns, slide-over content and action labels all go through Laravel's translation system.
+
+For other locales, or to customise the wording, publish the translation files into your app:
+
+```bash
+php artisan vendor:publish --tag=lunar-product-schemas-translations
+```
+
+This copies the bundled translations to `lang/vendor/lunar-product-schemas/{en,pl}/filament.php` where you can edit them directly. Adding a new locale (say German):
+
+```bash
+cp lang/vendor/lunar-product-schemas/en/filament.php \
+   lang/vendor/lunar-product-schemas/de/filament.php
+# translate the values, set app.locale = 'de'
+```
+
+Laravel's standard fallback chain applies — if a key is missing in the active locale, it falls back to `config('app.fallback_locale')` (English by default), so partial translations are safe.
 
 ## Out of scope
 

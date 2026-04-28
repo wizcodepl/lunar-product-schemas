@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-04-28
+
+### Changed
+- **Schema Health page rewritten to be 100% Filament-native.** Header is now a `StatsOverviewWidget` (Complete / Partial / Missing stat boxes with Filament's `success` / `warning` / `danger` colors and heroicons); body is a Filament `Table` over `ProductType` with sortable/searchable/paginated columns and a `ViewAction` that opens a slide-over with the per-type breakdown. No bespoke Tailwind grids in the page view.
+- **Navigation nests under Products.** `getNavigationParentItem()` returns `lunarpanel::product.plural_label`, so the entry shows up as **Products → Schema Health** instead of a top-level Catalog item.
+- All admin-facing strings extracted to translation files. The page, widget, table columns, and slide-over now go through `__('lunar-product-schemas::filament.…')`.
+
+### Added
+- Translation files at `resources/lang/{en,pl}/filament.php` (English is the default; Polish ships out of the box). Publish via `php artisan vendor:publish --tag=lunar-product-schemas-translations` to override or add new locales.
+- README **Translations** section documenting the locale fallback chain and how to publish / add languages.
+
 ## [1.2.0] - 2026-04-28
 
 ### Added
@@ -58,7 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled migration to add the `handle` column to `lunar_product_types` (Lunar core ships without it).
 - Full feature test suite covering builders, static API, and console commands (Orchestra Testbench, runs against in-memory SQLite locally and MySQL 8 in CI).
 
-[Unreleased]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.3...v1.2.0
 [1.1.3]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/wizcodepl/lunar-product-schemas/compare/v1.1.1...v1.1.2

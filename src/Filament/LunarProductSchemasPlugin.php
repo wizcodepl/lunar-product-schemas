@@ -7,6 +7,7 @@ namespace WizcodePl\LunarProductSchemas\Filament;
 use Filament\Contracts\Plugin;
 use Filament\Panel;
 use WizcodePl\LunarProductSchemas\Filament\Pages\SchemaHealth;
+use WizcodePl\LunarProductSchemas\Filament\Widgets\SchemaHealthOverview;
 
 /**
  * Filament plugin — opt-in. Register in your PanelProvider:
@@ -33,6 +34,12 @@ class LunarProductSchemasPlugin implements Plugin
     {
         $panel->pages([
             SchemaHealth::class,
+        ]);
+
+        // Widgets must be registered with the panel so Livewire can mount them when the page
+        // calls getHeaderWidgets(). Without this Filament throws ComponentNotFoundException.
+        $panel->widgets([
+            SchemaHealthOverview::class,
         ]);
     }
 
