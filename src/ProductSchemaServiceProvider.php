@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace WizcodePl\LunarProductSchemas;
 
 use Illuminate\Support\ServiceProvider;
+use Lunar\Models\Product;
+use Lunar\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\Console\ApplyCommand;
 use WizcodePl\LunarProductSchemas\Console\MakeCommand;
 use WizcodePl\LunarProductSchemas\Console\RollbackCommand;
 use WizcodePl\LunarProductSchemas\Console\StatusCommand;
 use WizcodePl\LunarProductSchemas\Migrations\ProductSchemaMigrationRepository;
 use WizcodePl\LunarProductSchemas\Migrations\ProductSchemaMigrator;
+use WizcodePl\LunarProductSchemas\Observers\ProductSchemaObserver;
+use WizcodePl\LunarProductSchemas\Observers\ProductVariantSchemaObserver;
 
 class ProductSchemaServiceProvider extends ServiceProvider
 {
@@ -55,6 +59,11 @@ class ProductSchemaServiceProvider extends ServiceProvider
                 StatusCommand::class,
                 MakeCommand::class,
             ]);
+        }
+
+        if (config('lunar-product-schemas.strict_mode')) {
+            Product::observe(ProductSchemaObserver::class);
+            ProductVariant::observe(ProductVariantSchemaObserver::class);
         }
     }
 }
