@@ -8,7 +8,10 @@ use Lunar\FieldTypes\Text;
 use Lunar\FieldTypes\TranslatedText;
 use Lunar\Models\Product;
 use Lunar\Models\ProductVariant;
+use Lunar\Models\TaxClass;
 use WizcodePl\LunarProductSchemas\Exceptions\UnknownAttributeException;
+use WizcodePl\LunarProductSchemas\Observers\ProductSchemaObserver;
+use WizcodePl\LunarProductSchemas\Observers\ProductVariantSchemaObserver;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 
@@ -20,8 +23,8 @@ class StrictModeTest extends TestCase
         config(['lunar-product-schemas.strict_mode' => true]);
 
         // Re-register observers — service provider already booted with the default config.
-        Product::observe(\WizcodePl\LunarProductSchemas\Observers\ProductSchemaObserver::class);
-        ProductVariant::observe(\WizcodePl\LunarProductSchemas\Observers\ProductVariantSchemaObserver::class);
+        Product::observe(ProductSchemaObserver::class);
+        ProductVariant::observe(ProductVariantSchemaObserver::class);
 
         $this->seedLunarBaseData();
     }
@@ -84,7 +87,7 @@ class StrictModeTest extends TestCase
 
         $product->variants()->create([
             'sku' => 'TEE-001',
-            'tax_class_id' => \Lunar\Models\TaxClass::first()->id,
+            'tax_class_id' => TaxClass::first()->id,
             'attribute_data' => [
                 'variant_size' => new Text('M'),
                 'variant_phantom' => new Text('boom'),
