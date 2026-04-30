@@ -49,8 +49,18 @@ php artisan vendor:publish --tag=lunar-product-schemas-config
 // config/lunar-product-schemas.php
 return [
     'path' => database_path('product-schemas'),
+
+    // Optional: throw `UnknownAttributeException` when a Product / ProductVariant
+    // is saved with `attribute_data` keys not declared in the product type's schema.
+    'strict_mode' => env('LUNAR_PRODUCT_SCHEMAS_STRICT', false),
 ];
 ```
+
+## Strict mode
+
+Enable `strict_mode` (config or `LUNAR_PRODUCT_SCHEMAS_STRICT=true` in `.env`) and the package observes Lunar's `Product` and `ProductVariant` saves: any `attribute_data` key not declared in the product type's schema throws `WizcodePl\LunarProductSchemas\Exceptions\UnknownAttributeException`. The schema becomes the source of truth — schema drift surfaces as a loud failure instead of silently corrupting `attribute_data` JSON.
+
+Off by default so adopting the package on an existing catalog is a no-op; flip on once your schemas cover everything you actually persist.
 
 ## Concepts: product-level vs variant-level attributes
 
@@ -280,69 +290,6 @@ ProductSchema::dropProductType('legacy-products');
 ```
 
 Lunar cascades the `ProductType ↔ Attribute` pivot. Products of this type are **not** deleted — orphaning them is rarely what you want, so migrate the data explicitly first.
-
-## API reference
-
-### `ProductSchema::productType(string $handle, ?string $name = null): ProductTypeBuilder`
-
-Creates the product type if missing. If `$name` is supplied and differs, updates it.
-
-### `ProductSchema::productTypes(array $types): ProductTypesBuilder`
-
-Either a flat list of handles or a `[handle => name]` map. Every method on the returned builder fans out to each underlying `ProductTypeBuilder`.
-
-### `ProductSchema::attribute(string $handle): AttributeBuilder`
-
-Cross-type operations on a **product-level** attribute. Throws if it doesn't exist.
-
-### `ProductSchema::variantAttribute(string $handle): AttributeBuilder`
-
-Cross-type operations on a **variant-level** attribute. Throws if it doesn't exist.
-
-### `ProductSchema::dropAttribute(string $handle): void`
-
-Global drop with full cleanup (pivot rows + correct `attribute_data` JSON layer based on the attribute's type).
-
-### `ProductSchema::dropProductType(string $handle): void`
-
-Deletes the product type row only.
-
-### `ProductTypeBuilder::attribute(...)` / `ProductTypeBuilder::variantAttribute(...)`
-
-```php
-attribute(
-    string $handle,
-    string|array|null $name = null,
-    ?string $type = null,
-    string $group = 'spec',                  // 'variant_spec' for variantAttribute()
-    string|array|null $groupName = null,
-    ?bool $searchable = null,
-    ?bool $filterable = null,
-    ?bool $required = null,
-)
-```
-
-Both are idempotent. Defaults (`type=Text`, `searchable=true`, `filterable=false`, `required=false`) are applied **only on first create**. Tristate flags (`null` = leave existing value alone) make it safe for multiple migrations to touch the same attribute without unintentionally resetting flags.
-
-### `ProductTypeBuilder::dropAttribute(string $handle)` / `ProductTypeBuilder::dropVariantAttribute(string $handle)`
-
-Detach + strip JSON values from this type only. Other product types are untouched. Each method targets its own layer.
-
-### `ProductTypeBuilder::syncAttributes(array $keep)` / `ProductTypeBuilder::syncVariantAttributes(array $keep)`
-
-Detach every attribute on the matching layer whose handle is not in `$keep`. Cross-layer attrs are untouched.
-
-### `ProductTypeBuilder::rename(string $newHandle, ?string $newName = null)`
-
-Rename the product type itself.
-
-### `AttributeBuilder` methods
-
-- `filterable(bool $value = true)`
-- `searchable(bool $value = true)`
-- `required(bool $value = true)`
-- `name(string $name, string $locale = 'en')`
-- `rename(string $newHandle)` — also migrates `attribute_data` JSON keys (chunked) on the correct layer (Product or ProductVariant) based on how the builder was constructed.
 
 ## Schema Health (Filament)
 
