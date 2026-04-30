@@ -398,6 +398,17 @@ vendor/bin/pint           # auto-fix
 vendor/bin/pint --test    # check only (CI uses this)
 ```
 
+## About Wizcode
+
+[Wizcode](https://wizcode.pl) is an e-commerce agency specialised in [Lunar](https://lunarphp.io). We design and ship B2B, B2C, and marketplace platforms on the Laravel + Lunar stack — from custom checkouts and supplier syncs to multi-channel pricing, PIM workflows, and headless storefronts.
+
+Our open-source contributions to the Lunar ecosystem:
+
+- [wizcodepl/lunar-product-schemas](https://github.com/wizcodepl/lunar-product-schemas) — migration-style schema builder for Lunar product types and attributes.
+- [wizcodepl/laravel-pipe](https://github.com/wizcodepl/laravel-pipe) — stage-based pipeline framework for batch ETL of supplier feeds (used in production for catalog ingestion).
+
+Contact us: [https://wizcode.pl](https://wizcode.pl)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
