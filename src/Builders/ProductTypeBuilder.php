@@ -46,6 +46,7 @@ class ProductTypeBuilder
         ?bool $searchable = null,
         ?bool $filterable = null,
         ?bool $required = null,
+        ?array $configuration = null,
     ): self {
         return $this->upsertAttribute(
             attributableType: Product::morphName(),
@@ -57,6 +58,7 @@ class ProductTypeBuilder
             searchable: $searchable,
             filterable: $filterable,
             required: $required,
+            configuration: $configuration,
         );
     }
 
@@ -79,6 +81,7 @@ class ProductTypeBuilder
         ?bool $searchable = null,
         ?bool $filterable = null,
         ?bool $required = null,
+        ?array $configuration = null,
     ): self {
         return $this->upsertAttribute(
             attributableType: ProductVariant::morphName(),
@@ -90,6 +93,7 @@ class ProductTypeBuilder
             searchable: $searchable,
             filterable: $filterable,
             required: $required,
+            configuration: $configuration,
         );
     }
 
@@ -204,6 +208,7 @@ class ProductTypeBuilder
         ?bool $searchable,
         ?bool $filterable,
         ?bool $required,
+        ?array $configuration,
     ): self {
         // Lunar's `lunar_attribute_groups.handle` has a global UNIQUE constraint — it is NOT
         // scoped by `attributable_type`. So we look up by handle alone and reuse whatever
@@ -233,6 +238,7 @@ class ProductTypeBuilder
                 'searchable' => $searchable,
                 'filterable' => $filterable,
                 'required' => $required,
+                'configuration' => $configuration,
             ],
             fn ($value) => $value !== null,
         );

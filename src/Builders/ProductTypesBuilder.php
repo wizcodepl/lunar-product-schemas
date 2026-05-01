@@ -46,6 +46,7 @@ class ProductTypesBuilder
         ?bool $searchable = null,
         ?bool $filterable = null,
         ?bool $required = null,
+        ?array $configuration = null,
     ): self {
         foreach ($this->builders as $builder) {
             $builder->attribute(
@@ -57,6 +58,7 @@ class ProductTypesBuilder
                 searchable: $searchable,
                 filterable: $filterable,
                 required: $required,
+                configuration: $configuration,
             );
         }
 
@@ -72,6 +74,7 @@ class ProductTypesBuilder
         ?bool $searchable = null,
         ?bool $filterable = null,
         ?bool $required = null,
+        ?array $configuration = null,
     ): self {
         foreach ($this->builders as $builder) {
             $builder->variantAttribute(
@@ -83,6 +86,7 @@ class ProductTypesBuilder
                 searchable: $searchable,
                 filterable: $filterable,
                 required: $required,
+                configuration: $configuration,
             );
         }
 

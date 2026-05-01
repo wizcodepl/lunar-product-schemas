@@ -233,6 +233,23 @@ ProductSchema::productType('t-shirts')
     );
 ```
 
+### Field type configuration
+
+Lunar's Filament admin reads `Attribute::configuration` JSON to choose the right form component (e.g. `richtext: true` makes `Text` / `TranslatedText` render as a WYSIWYG editor instead of a single-line input). Pass `configuration: [...]` on the schema definition and the package writes it straight onto the attribute row:
+
+```php
+ProductSchema::productType('t-shirts')
+    ->attribute(
+        handle: 'description',
+        name: ['en' => 'Description', 'pl' => 'Opis'],
+        type: TranslatedText::class,
+        configuration: ['richtext' => true],
+        required: true,
+    );
+```
+
+`configuration` follows the same null-leaves-existing-alone semantics as the boolean flags — re-running a migration without it preserves whatever's already stored.
+
 ### Renaming and toggling flags globally
 
 `ProductSchema::attribute(...)` operates on a product-level attribute regardless of which product types use it. `ProductSchema::variantAttribute(...)` is the equivalent for variant-level attributes.

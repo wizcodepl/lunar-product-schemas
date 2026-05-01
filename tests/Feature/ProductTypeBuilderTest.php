@@ -9,6 +9,7 @@ use Lunar\Models\Attribute;
 use Lunar\Models\AttributeGroup;
 use Lunar\Models\Product;
 use Lunar\Models\ProductType;
+use Lunar\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 
@@ -212,5 +213,30 @@ class ProductTypeBuilderTest extends TestCase
         ProductSchema::productType('legacy-products')->rename('archive-products');
 
         $this->assertSame('Original', ProductType::where('handle', 'archive-products')->value('name'));
+    }
+
+    public function test_attribute_persists_configuration_array(): void
+    {
+        ProductSchema::productType('t-shirts')->attribute('description', configuration: ['richtext' => true]);
+
+        $config = Attribute::where('handle', 'description')->where('attribute_type', Product::morphName())->value('configuration');
+        $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
+    }
+
+    public function test_variant_attribute_persists_configuration_array(): void
+    {
+        ProductSchema::productType('t-shirts')->variantAttribute('variant_notes', configuration: ['richtext' => true]);
+
+        $config = Attribute::where('handle', 'variant_notes')->where('attribute_type', ProductVariant::morphName())->value('configuration');
+        $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
+    }
+
+    public function test_attribute_configuration_omitted_keeps_existing(): void
+    {
+        ProductSchema::productType('t-shirts')->attribute('description', configuration: ['richtext' => true]);
+        ProductSchema::productType('t-shirts')->attribute('description', filterable: true);
+
+        $config = Attribute::where('handle', 'description')->where('attribute_type', Product::morphName())->value('configuration');
+        $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
     }
 }
