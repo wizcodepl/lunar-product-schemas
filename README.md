@@ -53,6 +53,10 @@ return [
     // Optional: throw `UnknownAttributeException` when a Product / ProductVariant
     // is saved with `attribute_data` keys not declared in the product type's schema.
     'strict_mode' => env('LUNAR_PRODUCT_SCHEMAS_STRICT', false),
+
+    // Optional: throw `MissingRequiredAttributeException` when a Product / ProductVariant
+    // is saved without values for attributes marked `required: true` in its schema.
+    'enforce_required' => env('LUNAR_PRODUCT_SCHEMAS_ENFORCE_REQUIRED', false),
 ];
 ```
 
@@ -61,6 +65,12 @@ return [
 Enable `strict_mode` (config or `LUNAR_PRODUCT_SCHEMAS_STRICT=true` in `.env`) and the package observes Lunar's `Product` and `ProductVariant` saves: any `attribute_data` key not declared in the product type's schema throws `WizcodePl\LunarProductSchemas\Exceptions\UnknownAttributeException`. The schema becomes the source of truth — schema drift surfaces as a loud failure instead of silently corrupting `attribute_data` JSON.
 
 Off by default so adopting the package on an existing catalog is a no-op; flip on once your schemas cover everything you actually persist.
+
+## Enforce required
+
+Enable `enforce_required` (config or `LUNAR_PRODUCT_SCHEMAS_ENFORCE_REQUIRED=true` in `.env`) and the same observers reject any save where attributes marked `required: true` in the schema are missing or empty (`null`, `''`, empty list/dict on a Lunar `FieldType`). They throw `WizcodePl\LunarProductSchemas\Exceptions\MissingRequiredAttributeException` listing the missing handles.
+
+Independent from `strict_mode` — turn either or both on. Off by default because back-filling required values across an existing catalog can break unrelated workflows (admin edits, programmatic saves) until every record is migrated.
 
 ## Concepts: product-level vs variant-level attributes
 

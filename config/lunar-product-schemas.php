@@ -28,4 +28,21 @@ return [
     |
     */
     'strict_mode' => env('LUNAR_PRODUCT_SCHEMAS_STRICT', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Enforce required attributes
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, saving a Product / ProductVariant that is missing any
+    | attribute marked `required: true` in its product type's schema throws
+    | `WizcodePl\LunarProductSchemas\Exceptions\MissingRequiredAttributeException`.
+    |
+    | Independent from `strict_mode`; turn either or both on. Off by default
+    | because back-filling required values across an existing catalog can
+    | break unrelated workflows (admin edits, programmatic saves) until every
+    | record is migrated.
+    |
+    */
+    'enforce_required' => env('LUNAR_PRODUCT_SCHEMAS_ENFORCE_REQUIRED', false),
 ];

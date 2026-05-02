@@ -61,7 +61,9 @@ class ProductSchemaServiceProvider extends ServiceProvider
             ]);
         }
 
-        if (config('lunar-product-schemas.strict_mode')) {
+        // Either policy (unknown-key strictness or required-attribute enforcement)
+        // attaches the observers — each observer gates its own checks internally.
+        if (config('lunar-product-schemas.strict_mode') || config('lunar-product-schemas.enforce_required')) {
             Product::observe(ProductSchemaObserver::class);
             ProductVariant::observe(ProductVariantSchemaObserver::class);
         }
