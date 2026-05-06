@@ -3,7 +3,16 @@
     "description": "Migration-style schema builder for Lunar product types and attributes (toggle filterable/searchable/required, attach/detach attrs, rename, drop with data cleanup).",
     "type": "library",
     "license": "MIT",
-    "keywords": ["lunar", "lunarphp", "laravel", "ecommerce", "schema", "migration", "product-attributes", "pim"],
+    "keywords": [
+        "lunar",
+        "lunarphp",
+        "laravel",
+        "ecommerce",
+        "schema",
+        "migration",
+        "product-attributes",
+        "pim"
+    ],
     "authors": [
         {
             "name": "Wizcode",
@@ -17,8 +26,8 @@
     "require-dev": {
         "filament/filament": "^3.2",
         "laravel/pint": "^1.18",
-        "orchestra/testbench": "^9.0|^10.0|^11.0",
-        "phpunit/phpunit": "^11.0"
+        "orchestra/testbench": "^9.0||^10.0||^11.0",
+        "phpunit/phpunit": "^11.0||^12.0"
     },
     "suggest": {
         "filament/filament": "Required for the bundled Schema Health admin page."
