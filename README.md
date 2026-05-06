@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="art/logo.svg" alt="Lunar Product Schemas" width="200">
+</p>
+
 # Lunar Product Schemas
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/wizcodepl/lunar-product-schemas.svg?style=flat-square)](https://packagist.org/packages/wizcodepl/lunar-product-schemas)
