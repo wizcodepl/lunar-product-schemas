@@ -322,78 +322,30 @@ ProductSchema::dropProductType('legacy-products');
 
 Lunar cascades the `ProductType ↔ Attribute` pivot. Products of this type are **not** deleted — orphaning them is rarely what you want, so migrate the data explicitly first.
 
-## Schema Health (Filament)
+## Schema Health (Spatie health check)
 
-A bundled Filament admin page surfaces **how complete your catalog actually is** against the `required` attributes you've declared. Lives under **Catalog → Products → Schema Health** (sibling of *Product Types*), so it's right where someone looking at the catalog model would expect it.
-
-Opt in by registering the plugin in your `PanelProvider`:
+The package ships a [`spatie/laravel-health`](https://github.com/spatie/laravel-health) check that reports how complete your catalog is against the `required` attributes you've declared. Drop it into your `HealthServiceProvider`:
 
 ```php
-use WizcodePl\LunarProductSchemas\Filament\LunarProductSchemasPlugin;
+use Spatie\Health\Facades\Health;
+use WizcodePl\LunarProductSchemas\Health\ProductSchemaHealthCheck;
 
-public function panel(Panel $panel): Panel
-{
-    return $panel->plugin(LunarProductSchemasPlugin::make());
-}
+Health::checks([
+    ProductSchemaHealthCheck::new()
+        ->minCompletePercentage(95.0)   // below this → failed
+        ->warningCompletePercentage(85), // below this → warning
+]);
 ```
 
-What you get:
+The check walks every `ProductType` and inspects `attribute_data` on each `Product` — same logic, just exposed through the Spatie health pipeline so it surfaces on whichever dashboard / endpoint / notifier you already have wired up. `meta` on the result includes `complete_percentage`, totals, and a per-ProductType breakdown for drill-down.
 
-- **Header stats widget** — three native Filament `StatsOverviewWidget` cards aggregating the whole catalog: Complete / Partial / Missing.
-- **Filament Table** of every ProductType with: name, total products, completeness %, complete / partial / missing counts. Searchable, sortable, paginated.
-- **Click a row** → slide-over with the per-type breakdown:
-  - Three stat boxes for that type
-  - Progress bar with exact %
-  - Required-fields list
-  - Per-attribute gap breakdown ("23 products missing `material`, 8 missing `gtin`")
-  - Each gap is **collapsible** — expand to see the actual list of products that lack the field
-
-It uses only what Lunar already exposes — the `required` flag on `Attribute` and `attribute_data` on `Product`. No new tables, no new concepts, no extra configuration. The moment you mark an attribute `required: true` (via this package or otherwise), it lights up in the dashboard.
-
-If you don't install Filament or don't register the plugin, the rest of the package works as before — the report data is also available programmatically:
-
-```php
-use WizcodePl\LunarProductSchemas\Reports\SchemaHealthReport;
-
-$rows = app(SchemaHealthReport::class)->compute();
-foreach ($rows as $row) {
-    $row->productType;                  // Lunar ProductType
-    $row->totalProducts;                // int
-    $row->complete;                     // int
-    $row->partial;                      // int
-    $row->missing;                      // int
-    $row->completePercentage();         // float
-    $row->requiredAttributeHandles;     // ['material', 'gtin']
-    $row->missingByAttribute;           // ['material' => 23, 'gtin' => 8]
-}
-
-// Health for a single ProductType by handle:
-$health = app(SchemaHealthReport::class)->forType('t-shirts');
-
-// Drill-down for a specific (type, attribute) pair:
-$incomplete = app(SchemaHealthReport::class)
-    ->productsMissing('t-shirts', 'material');
-```
-
-## Translations
-
-The Filament page ships with **English (default) and Polish** out of the box. The widget, table columns, slide-over content and action labels all go through Laravel's translation system.
-
-For other locales, or to customise the wording, publish the translation files into your app:
+Install Spatie Health if your app doesn't already use it:
 
 ```bash
-php artisan vendor:publish --tag=lunar-product-schemas-translations
+composer require spatie/laravel-health
 ```
 
-This copies the bundled translations to `lang/vendor/lunar-product-schemas/{en,pl}/filament.php` where you can edit them directly. Adding a new locale (say German):
-
-```bash
-cp lang/vendor/lunar-product-schemas/en/filament.php \
-   lang/vendor/lunar-product-schemas/de/filament.php
-# translate the values, set app.locale = 'de'
-```
-
-Laravel's standard fallback chain applies — if a key is missing in the active locale, it falls back to `config('app.fallback_locale')` (English by default), so partial translations are safe.
+The Filament admin page that previously shipped with this package (`Schema Health` under Products) has been removed in `1.5.1` — see [`patches/0001-filament-schema-health.patch`](patches/0001-filament-schema-health.patch) if you want to restore it locally.
 
 ## Out of scope
 

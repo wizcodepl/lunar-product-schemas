@@ -1,0 +1,889 @@
+Restore the Filament Schema Health admin UI that shipped in v1.2.x.
+
+Apply with:
+    git apply patches/0001-filament-schema-health.patch
+
+After applying you also need to:
+  - add "filament/filament": "^3.2" to composer.json require-dev
+  - in ProductSchemaServiceProvider::boot(), load views and translations:
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'lunar-product-schemas');
+        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'lunar-product-schemas');
+  - register the plugin in your PanelProvider:
+        $panel->plugin(\WizcodePl\LunarProductSchemas\Filament\LunarProductSchemasPlugin::make());
+
+The bundled SchemaHealthReport service is restored alongside the UI; if you
+keep the new ProductSchemaHealthCheck, the two coexist (different consumers,
+same underlying data).
+
+diff --git a/resources/lang/en/filament.php b/resources/lang/en/filament.php
+new file mode 100644
+index 0000000..7d3a83d
+--- /dev/null
++++ b/resources/lang/en/filament.php
+@@ -0,0 +1,35 @@
++<?php
++
++declare(strict_types=1);
++
++return [
++    'schema_health' => [
++        'navigation_label' => 'Schema Health',
++        'title' => 'Schema Health',
++
++        // Stat widget
++        'stat_complete' => 'Complete',
++        'stat_complete_suffix' => 'of catalog',
++        'stat_partial' => 'Partial',
++        'stat_partial_suffix' => 'some required fields missing',
++        'stat_missing' => 'Missing',
++        'stat_missing_suffix' => 'all required fields missing',
++        'stat_no_products' => 'no products yet',
++
++        // Table columns
++        'col_products' => 'Products',
++        'col_completeness' => 'Completeness',
++
++        // Actions
++        'action_view' => 'View',
++        'action_close' => 'Close',
++
++        // Slide-over content
++        'required_fields' => 'Required fields',
++        'missing_breakdown' => 'Missing field breakdown',
++        'missing_label' => 'missing',
++        'all_complete' => '✓ All products have required fields filled',
++        'no_data' => 'No data.',
++        'unnamed_product' => '(unnamed product)',
++    ],
++];
+diff --git a/resources/lang/pl/filament.php b/resources/lang/pl/filament.php
+new file mode 100644
+index 0000000..06e7eca
+--- /dev/null
++++ b/resources/lang/pl/filament.php
+@@ -0,0 +1,35 @@
++<?php
++
++declare(strict_types=1);
++
++return [
++    'schema_health' => [
++        'navigation_label' => 'Stan schematu',
++        'title' => 'Stan schematu produktów',
++
++        // Stat widget
++        'stat_complete' => 'Kompletne',
++        'stat_complete_suffix' => 'katalogu',
++        'stat_partial' => 'Częściowe',
++        'stat_partial_suffix' => 'brak niektórych wymaganych pól',
++        'stat_missing' => 'Brakujące',
++        'stat_missing_suffix' => 'brak wszystkich wymaganych pól',
++        'stat_no_products' => 'brak produktów',
++
++        // Kolumny tabeli
++        'col_products' => 'Produkty',
++        'col_completeness' => 'Kompletność',
++
++        // Akcje
++        'action_view' => 'Podgląd',
++        'action_close' => 'Zamknij',
++
++        // Treść panelu szczegółów
++        'required_fields' => 'Wymagane pola',
++        'missing_breakdown' => 'Brakujące pola',
++        'missing_label' => 'brakuje',
++        'all_complete' => '✓ Wszystkie produkty mają wymagane pola',
++        'no_data' => 'Brak danych.',
++        'unnamed_product' => '(produkt bez nazwy)',
++    ],
++];
+diff --git a/resources/views/filament/pages/partials/schema-health-detail.blade.php b/resources/views/filament/pages/partials/schema-health-detail.blade.php
+new file mode 100644
+index 0000000..95e1f4b
+--- /dev/null
++++ b/resources/views/filament/pages/partials/schema-health-detail.blade.php
+@@ -0,0 +1,109 @@
++@php
++    /** @var \WizcodePl\LunarProductSchemas\Reports\ProductTypeHealth|null $health */
++    $report = app(\WizcodePl\LunarProductSchemas\Reports\SchemaHealthReport::class);
++@endphp
++
++@if ($health === null)
++    <p class="text-sm text-gray-500 dark:text-gray-400">
++        {{ __('lunar-product-schemas::filament.schema_health.no_data') }}
++    </p>
++@else
++    {{-- Top stats row — three Filament-style stat boxes inside the slide-over --}}
++    <div class="grid grid-cols-3 gap-3">
++        <div class="rounded-lg border border-success-100 bg-success-50/50 p-3 text-center dark:border-success-500/20 dark:bg-success-500/5">
++            <p class="text-xs font-medium uppercase tracking-wider text-success-700 dark:text-success-400">
++                {{ __('lunar-product-schemas::filament.schema_health.stat_complete') }}
++            </p>
++            <p class="mt-1 text-2xl font-bold text-success-900 dark:text-success-300">{{ $health->complete }}</p>
++        </div>
++        <div class="rounded-lg border border-warning-100 bg-warning-50/50 p-3 text-center dark:border-warning-500/20 dark:bg-warning-500/5">
++            <p class="text-xs font-medium uppercase tracking-wider text-warning-700 dark:text-warning-400">
++                {{ __('lunar-product-schemas::filament.schema_health.stat_partial') }}
++            </p>
++            <p class="mt-1 text-2xl font-bold text-warning-900 dark:text-warning-300">{{ $health->partial }}</p>
++        </div>
++        <div class="rounded-lg border border-danger-100 bg-danger-50/50 p-3 text-center dark:border-danger-500/20 dark:bg-danger-500/5">
++            <p class="text-xs font-medium uppercase tracking-wider text-danger-700 dark:text-danger-400">
++                {{ __('lunar-product-schemas::filament.schema_health.stat_missing') }}
++            </p>
++            <p class="mt-1 text-2xl font-bold text-danger-900 dark:text-danger-300">{{ $health->missing }}</p>
++        </div>
++    </div>
++
++    {{-- Progress bar --}}
++    <div class="mt-5">
++        <div class="mb-1 flex items-center justify-between text-xs">
++            <span class="font-medium text-gray-600 dark:text-gray-400">
++                {{ __('lunar-product-schemas::filament.schema_health.col_completeness') }}
++            </span>
++            <span class="font-mono tabular-nums text-gray-900 dark:text-white">
++                {{ number_format($health->completePercentage(), 1) }}%
++            </span>
++        </div>
++        <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
++            <div class="h-full rounded-full bg-success-500" style="width: {{ $health->completePercentage() }}%"></div>
++        </div>
++        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
++            {{ $health->totalProducts }} {{ $health->totalProducts === 1 ? 'product' : 'products' }}
++        </p>
++    </div>
++
++    {{-- Required fields --}}
++    @if (! empty($health->requiredAttributeHandles))
++        <div class="mt-6">
++            <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
++                {{ __('lunar-product-schemas::filament.schema_health.required_fields') }}
++                ({{ count($health->requiredAttributeHandles) }})
++            </h4>
++            <div class="mt-2 flex flex-wrap gap-1.5">
++                @foreach ($health->requiredAttributeHandles as $required)
++                    <span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">
++                        {{ $required }}
++                    </span>
++                @endforeach
++            </div>
++        </div>
++    @endif
++
++    {{-- Missing breakdown — collapsible product lists per attribute --}}
++    @if (! empty($health->missingByAttribute))
++        <div class="mt-6">
++            <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
++                {{ __('lunar-product-schemas::filament.schema_health.missing_breakdown') }}
++            </h4>
++            <div class="mt-2 space-y-2">
++                @foreach ($health->missingByAttribute as $handle => $count)
++                    @php $products = $report->productsMissing($health->productType->handle, $handle); @endphp
++                    <details class="group rounded-lg border border-gray-200 bg-white open:shadow-sm dark:border-white/10 dark:bg-gray-900">
++                        <summary class="flex cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-sm">
++                            <span class="flex items-center gap-2">
++                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
++                                     class="h-4 w-4 text-gray-400 transition group-open:rotate-90 dark:text-gray-500">
++                                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z" clip-rule="evenodd" />
++                                </svg>
++                                <span class="truncate font-mono text-xs text-gray-700 dark:text-gray-300">{{ $handle }}</span>
++                            </span>
++                            <span class="inline-flex shrink-0 items-center rounded-full bg-danger-50 px-2 py-0.5 text-[10px] font-medium text-danger-700 dark:bg-danger-500/10 dark:text-danger-400">
++                                {{ $count }} {{ __('lunar-product-schemas::filament.schema_health.missing_label') }}
++                            </span>
++                        </summary>
++                        <ul class="divide-y divide-gray-100 border-t border-gray-100 max-h-64 overflow-y-auto dark:divide-white/10 dark:border-white/10">
++                            @foreach ($products as $product)
++                                <li class="flex items-baseline gap-3 px-3 py-2 transition hover:bg-gray-50 dark:hover:bg-gray-800/30">
++                                    <span class="shrink-0 font-mono text-[11px] text-gray-400 dark:text-gray-500">#{{ $product->id }}</span>
++                                    <span class="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-white">
++                                        {{ $product->translateAttribute('name') ?: __('lunar-product-schemas::filament.schema_health.unnamed_product') }}
++                                    </span>
++                                </li>
++                            @endforeach
++                        </ul>
++                    </details>
++                @endforeach
++            </div>
++        </div>
++    @else
++        <div class="mt-6 rounded-md bg-success-50 px-3 py-2.5 text-center text-xs font-medium text-success-800 dark:bg-success-500/10 dark:text-success-300">
++            {{ __('lunar-product-schemas::filament.schema_health.all_complete') }}
++        </div>
++    @endif
++@endif
+diff --git a/resources/views/filament/pages/schema-health.blade.php b/resources/views/filament/pages/schema-health.blade.php
+new file mode 100644
+index 0000000..ce096a2
+--- /dev/null
++++ b/resources/views/filament/pages/schema-health.blade.php
+@@ -0,0 +1,3 @@
++<x-filament-panels::page>
++    {{ $this->table }}
++</x-filament-panels::page>
+diff --git a/src/Filament/LunarProductSchemasPlugin.php b/src/Filament/LunarProductSchemasPlugin.php
+new file mode 100644
+index 0000000..b48cb5c
+--- /dev/null
++++ b/src/Filament/LunarProductSchemasPlugin.php
+@@ -0,0 +1,50 @@
++<?php
++
++declare(strict_types=1);
++
++namespace WizcodePl\LunarProductSchemas\Filament;
++
++use Filament\Contracts\Plugin;
++use Filament\Panel;
++use WizcodePl\LunarProductSchemas\Filament\Pages\SchemaHealth;
++use WizcodePl\LunarProductSchemas\Filament\Widgets\SchemaHealthOverview;
++
++/**
++ * Filament plugin — opt-in. Register in your PanelProvider:
++ *
++ *   $panel->plugin(\WizcodePl\LunarProductSchemas\Filament\LunarProductSchemasPlugin::make());
++ *
++ * Without this, the package's runtime API and CLI commands work as before;
++ * only the Schema Health admin page is gated behind the plugin so panels
++ * that don't want it stay clean.
++ */
++class LunarProductSchemasPlugin implements Plugin
++{
++    public static function make(): static
++    {
++        return app(static::class);
++    }
++
++    public function getId(): string
++    {
++        return 'lunar-product-schemas';
++    }
++
++    public function register(Panel $panel): void
++    {
++        $panel->pages([
++            SchemaHealth::class,
++        ]);
++
++        // Widgets must be registered with the panel so Livewire can mount them when the page
++        // calls getHeaderWidgets(). Without this Filament throws ComponentNotFoundException.
++        $panel->widgets([
++            SchemaHealthOverview::class,
++        ]);
++    }
++
++    public function boot(Panel $panel): void
++    {
++        // No additional boot hooks needed for v1.2.
++    }
++}
+diff --git a/src/Filament/Pages/SchemaHealth.php b/src/Filament/Pages/SchemaHealth.php
+new file mode 100644
+index 0000000..864b7b4
+--- /dev/null
++++ b/src/Filament/Pages/SchemaHealth.php
+@@ -0,0 +1,130 @@
++<?php
++
++declare(strict_types=1);
++
++namespace WizcodePl\LunarProductSchemas\Filament\Pages;
++
++use Filament\Pages\Page;
++use Filament\Tables\Actions\ViewAction;
++use Filament\Tables\Columns\TextColumn;
++use Filament\Tables\Concerns\InteractsWithTable;
++use Filament\Tables\Contracts\HasTable;
++use Filament\Tables\Table;
++use Lunar\Models\ProductType;
++use WizcodePl\LunarProductSchemas\Filament\Widgets\SchemaHealthOverview;
++use WizcodePl\LunarProductSchemas\Reports\SchemaHealthReport;
++
++class SchemaHealth extends Page implements HasTable
++{
++    use InteractsWithTable;
++
++    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
++
++    protected static ?string $slug = 'schema-health';
++
++    protected static string $view = 'lunar-product-schemas::filament.pages.schema-health';
++
++    public static function getNavigationGroup(): ?string
++    {
++        return __('lunarpanel::global.sections.catalog');
++    }
++
++    public static function getNavigationParentItem(): ?string
++    {
++        return __('lunarpanel::product.plural_label');
++    }
++
++    public static function getNavigationLabel(): string
++    {
++        return __('lunar-product-schemas::filament.schema_health.navigation_label');
++    }
++
++    public function getTitle(): string
++    {
++        return __('lunar-product-schemas::filament.schema_health.title');
++    }
++
++    protected function getHeaderWidgets(): array
++    {
++        return [SchemaHealthOverview::class];
++    }
++
++    /**
++     * Filament Table — uses ProductType as the data source and augments each row with health
++     * stats computed once per request via SchemaHealthReport::compute(). Rows are clickable
++     * (recordAction = 'view') and open a slide-over with the per-type breakdown + drill-downs.
++     */
++    public function table(Table $table): Table
++    {
++        $stats = collect(app(SchemaHealthReport::class)->compute())
++            ->keyBy(fn ($row) => $row->productType->handle);
++
++        return $table
++            ->query(ProductType::query())
++            ->columns([
++                TextColumn::make('name')
++                    ->label(__('lunarpanel::producttype.table.name.label'))
++                    ->description(fn ($record) => $record->handle)
++                    ->searchable(['name', 'handle'])
++                    ->sortable(),
++
++                TextColumn::make('total_products')
++                    ->label(__('lunar-product-schemas::filament.schema_health.col_products'))
++                    ->state(fn ($record) => $stats->get($record->handle)?->totalProducts ?? 0)
++                    ->numeric()
++                    ->alignEnd(),
++
++                TextColumn::make('completeness')
++                    ->label(__('lunar-product-schemas::filament.schema_health.col_completeness'))
++                    ->state(fn ($record) => $stats->get($record->handle)?->completePercentage() ?? 0)
++                    ->formatStateUsing(fn ($state) => number_format($state, 0).'%')
++                    ->badge()
++                    ->color(fn ($state) => match (true) {
++                        $state >= 95 => 'success',
++                        $state >= 70 => 'warning',
++                        default => 'danger',
++                    }),
++
++                TextColumn::make('complete_count')
++                    ->label(__('lunar-product-schemas::filament.schema_health.stat_complete'))
++                    ->state(fn ($record) => $stats->get($record->handle)?->complete ?? 0)
++                    ->badge()
++                    ->color('success')
++                    ->numeric()
++                    ->alignCenter(),
++
++                TextColumn::make('partial_count')
++                    ->label(__('lunar-product-schemas::filament.schema_health.stat_partial'))
++                    ->state(fn ($record) => $stats->get($record->handle)?->partial ?? 0)
++                    ->badge()
++                    ->color('warning')
++                    ->numeric()
++                    ->alignCenter(),
++
++                TextColumn::make('missing_count')
++                    ->label(__('lunar-product-schemas::filament.schema_health.stat_missing'))
++                    ->state(fn ($record) => $stats->get($record->handle)?->missing ?? 0)
++                    ->badge()
++                    ->color('danger')
++                    ->numeric()
++                    ->alignCenter(),
++            ])
++            ->actions([
++                ViewAction::make()
++                    ->label(__('lunar-product-schemas::filament.schema_health.action_view'))
++                    ->icon('heroicon-m-eye')
++                    ->slideOver()
++                    ->modalHeading(fn ($record) => $record->name)
++                    ->modalDescription(fn ($record) => $record->handle)
++                    ->modalSubmitAction(false)
++                    ->modalCancelActionLabel(__('lunar-product-schemas::filament.schema_health.action_close'))
++                    ->modalContent(fn ($record) => view(
++                        'lunar-product-schemas::filament.pages.partials.schema-health-detail',
++                        ['health' => $stats->get($record->handle)],
++                    )),
++            ])
++            ->recordAction(ViewAction::class)
++            ->defaultSort('name')
++            ->paginated([10, 25, 50, 'all']);
++    }
++}
+diff --git a/src/Filament/Widgets/SchemaHealthOverview.php b/src/Filament/Widgets/SchemaHealthOverview.php
+new file mode 100644
+index 0000000..8dccdd3
+--- /dev/null
++++ b/src/Filament/Widgets/SchemaHealthOverview.php
+@@ -0,0 +1,51 @@
++<?php
++
++declare(strict_types=1);
++
++namespace WizcodePl\LunarProductSchemas\Filament\Widgets;
++
++use Filament\Widgets\StatsOverviewWidget;
++use Filament\Widgets\StatsOverviewWidget\Stat;
++use WizcodePl\LunarProductSchemas\Reports\SchemaHealthReport;
++
++/**
++ * Three stat cards (Complete / Partial / Missing) summarising catalog health across all
++ * ProductTypes. Renders above the SchemaHealth page using Filament's native widget look —
++ * matches the styling of every other stat row in Lunar admin.
++ */
++class SchemaHealthOverview extends StatsOverviewWidget
++{
++    /** Render full-width above the page content (Filament default for header widgets). */
++    protected int|string|array $columnSpan = 'full';
++
++    protected function getStats(): array
++    {
++        $stats = app(SchemaHealthReport::class)->compute();
++
++        $total = array_sum(array_column($stats, 'totalProducts'));
++        $complete = array_sum(array_column($stats, 'complete'));
++        $partial = array_sum(array_column($stats, 'partial'));
++        $missing = array_sum(array_column($stats, 'missing'));
++
++        $percentage = $total > 0 ? ($complete / $total) * 100 : 0.0;
++
++        return [
++            Stat::make(__('lunar-product-schemas::filament.schema_health.stat_complete'), $complete)
++                ->description($total > 0
++                    ? number_format($percentage, 0).'% '.__('lunar-product-schemas::filament.schema_health.stat_complete_suffix')
++                    : __('lunar-product-schemas::filament.schema_health.stat_no_products'))
++                ->descriptionIcon('heroicon-m-check-circle')
++                ->color('success'),
++
++            Stat::make(__('lunar-product-schemas::filament.schema_health.stat_partial'), $partial)
++                ->description(__('lunar-product-schemas::filament.schema_health.stat_partial_suffix'))
++                ->descriptionIcon('heroicon-m-exclamation-triangle')
++                ->color('warning'),
++
++            Stat::make(__('lunar-product-schemas::filament.schema_health.stat_missing'), $missing)
++                ->description(__('lunar-product-schemas::filament.schema_health.stat_missing_suffix'))
++                ->descriptionIcon('heroicon-m-x-circle')
++                ->color('danger'),
++        ];
++    }
++}
+diff --git a/src/Reports/ProductTypeHealth.php b/src/Reports/ProductTypeHealth.php
+new file mode 100644
+index 0000000..6768101
+--- /dev/null
++++ b/src/Reports/ProductTypeHealth.php
+@@ -0,0 +1,43 @@
++<?php
++
++declare(strict_types=1);
++
++namespace WizcodePl\LunarProductSchemas\Reports;
++
++use Lunar\Models\ProductType;
++
++/**
++ * Aggregated data-completeness stats for a single ProductType.
++ *
++ * `complete` = product has every required attribute set to a non-empty value.
++ * `partial`  = at least one required attribute filled, at least one missing.
++ * `missing`  = none of the required attributes are filled (or the type has
++ *              required attributes but the product carries no attribute_data).
++ *
++ * `missingByAttribute` maps required attribute handle → number of products
++ * lacking a value for it. Lets the UI surface "which field is the bottleneck".
++ *
++ * When a ProductType has zero attributes flagged `required`, every product
++ * counts as `complete` and `missingByAttribute` is empty.
++ */
++final class ProductTypeHealth
++{
++    /**
++     * @param list<string> $requiredAttributeHandles
++     * @param array<string, int> $missingByAttribute
++     */
++    public function __construct(
++        public readonly ProductType $productType,
++        public readonly array $requiredAttributeHandles,
++        public readonly int $totalProducts,
++        public readonly int $complete,
++        public readonly int $partial,
++        public readonly int $missing,
++        public readonly array $missingByAttribute,
++    ) {}
++
++    public function completePercentage(): float
++    {
++        return $this->totalProducts === 0 ? 0.0 : ($this->complete / $this->totalProducts) * 100;
++    }
++}
+diff --git a/src/Reports/SchemaHealthReport.php b/src/Reports/SchemaHealthReport.php
+new file mode 100644
+index 0000000..28fe069
+--- /dev/null
++++ b/src/Reports/SchemaHealthReport.php
+@@ -0,0 +1,136 @@
++<?php
++
++declare(strict_types=1);
++
++namespace WizcodePl\LunarProductSchemas\Reports;
++
++use Illuminate\Database\Eloquent\Collection;
++use Lunar\Models\Product;
++use Lunar\Models\ProductType;
++
++/**
++ * Aggregated schema-completeness stats across every ProductType.
++ *
++ * Reads only what Lunar already exposes: the `required` flag on `Attribute`
++ * and the `attribute_data` JSON on `Product`. No new tables, no new concepts.
++ *
++ * v1.2.0 implementation walks every product per ProductType in PHP. Acceptable
++ * up to ~5k SKU per type. Larger catalogs: see the cached-column plan in the
++ * package roadmap.
++ */
++class SchemaHealthReport
++{
++    /**
++     * @return array<int, ProductTypeHealth>
++     */
++    public function compute(): array
++    {
++        return ProductType::query()
++            ->with(['mappedAttributes' => function ($q) {
++                $q->where('attribute_type', Product::morphName())
++                    ->where('required', true);
++            }])
++            ->orderBy('id')
++            ->get()
++            ->map(fn (ProductType $type) => $this->statsFor($type))
++            ->values()
++            ->all();
++    }
++
++    public function forType(string $handle): ?ProductTypeHealth
++    {
++        $type = ProductType::query()
++            ->with(['mappedAttributes' => function ($q) {
++                $q->where('attribute_type', Product::morphName())
++                    ->where('required', true);
++            }])
++            ->where('handle', $handle)
++            ->first();
++
++        return $type === null ? null : $this->statsFor($type);
++    }
++
++    /**
++     * Find every Product of the given type that's missing the named required
++     * attribute. Powers the drill-down list in the UI.
++     *
++     * @return Collection<int, Product>
++     */
++    public function productsMissing(string $productTypeHandle, string $attributeHandle)
++    {
++        return Product::query()
++            ->whereHas('productType', fn ($q) => $q->where('handle', $productTypeHandle))
++            ->get()
++            ->filter(fn (Product $p) => ! $this->hasValue($p, $attributeHandle))
++            ->values();
++    }
++
++    private function statsFor(ProductType $type): ProductTypeHealth
++    {
++        $requiredAttrs = $type->mappedAttributes;
++        $requiredHandles = $requiredAttrs->pluck('handle')->all();
++
++        $products = Product::query()
++            ->where('product_type_id', $type->id)
++            ->get();
++
++        $complete = 0;
++        $partial = 0;
++        $missing = 0;
++        $missingByAttribute = array_fill_keys($requiredHandles, 0);
++
++        foreach ($products as $product) {
++            if ($requiredAttrs->isEmpty()) {
++                $complete++;
++
++                continue;
++            }
++
++            $missingForProduct = [];
++            foreach ($requiredHandles as $handle) {
++                if (! $this->hasValue($product, $handle)) {
++                    $missingForProduct[] = $handle;
++                    $missingByAttribute[$handle]++;
++                }
++            }
++
++            if ($missingForProduct === []) {
++                $complete++;
++            } elseif (count($missingForProduct) === count($requiredHandles)) {
++                $missing++;
++            } else {
++                $partial++;
++            }
++        }
++
++        // Drop zero entries — UI only shows handles that actually have gaps.
++        $missingByAttribute = array_filter($missingByAttribute, static fn (int $count) => $count > 0);
++
++        return new ProductTypeHealth(
++            productType: $type,
++            requiredAttributeHandles: $requiredHandles,
++            totalProducts: $products->count(),
++            complete: $complete,
++            partial: $partial,
++            missing: $missing,
++            missingByAttribute: $missingByAttribute,
++        );
++    }
++
++    private function hasValue(Product $product, string $handle): bool
++    {
++        $data = $product->attribute_data;
++
++        if ($data === null || ! $data->has($handle)) {
++            return false;
++        }
++
++        $value = $data->get($handle);
++
++        if (is_object($value) && method_exists($value, 'getValue')) {
++            $value = $value->getValue();
++        }
++
++        return $value !== null && $value !== '' && $value !== [];
++    }
++}
+diff --git a/tests/Feature/SchemaHealthReportTest.php b/tests/Feature/SchemaHealthReportTest.php
+new file mode 100644
+index 0000000..91de25a
+--- /dev/null
++++ b/tests/Feature/SchemaHealthReportTest.php
+@@ -0,0 +1,220 @@
++<?php
++
++declare(strict_types=1);
++
++namespace WizcodePl\LunarProductSchemas\Tests\Feature;
++
++use Lunar\FieldTypes\Text;
++use Lunar\Models\Product;
++use Lunar\Models\ProductType;
++use WizcodePl\LunarProductSchemas\ProductSchema;
++use WizcodePl\LunarProductSchemas\Reports\SchemaHealthReport;
++use WizcodePl\LunarProductSchemas\Tests\TestCase;
++
++class SchemaHealthReportTest extends TestCase
++{
++    public function test_returns_empty_array_when_no_product_types(): void
++    {
++        $stats = app(SchemaHealthReport::class)->compute();
++
++        $this->assertSame([], $stats);
++    }
++
++    public function test_type_without_required_attributes_marks_every_product_complete(): void
++    {
++        $this->seedLunarBaseData();
++
++        ProductSchema::productType('t-shirts')
++            ->attribute('material')   // searchable=true default, required=false
++            ->attribute('description');
++
++        $type = ProductType::where('handle', 't-shirts')->first();
++        Product::factory()->create(['product_type_id' => $type->id]);
++        Product::factory()->create(['product_type_id' => $type->id]);
++
++        $stats = app(SchemaHealthReport::class)->forType('t-shirts');
++
++        $this->assertSame(2, $stats->totalProducts);
++        $this->assertSame(2, $stats->complete);
++        $this->assertSame(0, $stats->partial);
++        $this->assertSame(0, $stats->missing);
++        $this->assertSame([], $stats->requiredAttributeHandles);
++    }
++
++    public function test_classifies_complete_partial_missing_correctly(): void
++    {
++        $this->seedLunarBaseData();
++
++        ProductSchema::productType('t-shirts')
++            ->attribute('material', required: true)
++            ->attribute('gtin', required: true);
++
++        $type = ProductType::where('handle', 't-shirts')->first();
++
++        // Complete — both required filled.
++        Product::factory()->create([
++            'product_type_id' => $type->id,
++            'attribute_data' => collect([
++                'material' => new Text('cotton'),
++                'gtin' => new Text('5901234123457'),
++            ]),
++        ]);
++
++        // Partial — material set, gtin missing.
++        Product::factory()->create([
++            'product_type_id' => $type->id,
++            'attribute_data' => collect([
++                'material' => new Text('cotton'),
++            ]),
++        ]);
++
++        // Missing — both required absent.
++        Product::factory()->create([
++            'product_type_id' => $type->id,
++            'attribute_data' => collect([]),
++        ]);
++
++        $stats = app(SchemaHealthReport::class)->forType('t-shirts');
++
++        $this->assertSame(3, $stats->totalProducts);
++        $this->assertSame(1, $stats->complete);
++        $this->assertSame(1, $stats->partial);
++        $this->assertSame(1, $stats->missing);
++    }
++
++    public function test_missing_by_attribute_breakdown_is_accurate(): void
++    {
++        $this->seedLunarBaseData();
++
++        ProductSchema::productType('t-shirts')
++            ->attribute('material', required: true)
++            ->attribute('gtin', required: true)
++            ->attribute('brand', required: true);
++
++        $type = ProductType::where('handle', 't-shirts')->first();
++
++        // 3 products, all with brand+gtin set, none with material.
++        for ($i = 0; $i < 3; $i++) {
++            Product::factory()->create([
++                'product_type_id' => $type->id,
++                'attribute_data' => collect([
++                    'gtin' => new Text("X{$i}"),
++                    'brand' => new Text("Brand{$i}"),
++                ]),
++            ]);
++        }
++        // 2 products missing gtin AND brand (so partial — has material).
++        for ($i = 0; $i < 2; $i++) {
++            Product::factory()->create([
++                'product_type_id' => $type->id,
++                'attribute_data' => collect(['material' => new Text('cotton')]),
++            ]);
++        }
++
++        $stats = app(SchemaHealthReport::class)->forType('t-shirts');
++
++        $this->assertSame(3, $stats->missingByAttribute['material']);
++        $this->assertSame(2, $stats->missingByAttribute['gtin']);
++        $this->assertSame(2, $stats->missingByAttribute['brand']);
++    }
++
++    public function test_empty_string_attribute_value_treated_as_missing(): void
++    {
++        $this->seedLunarBaseData();
++
++        ProductSchema::productType('t-shirts')->attribute('material', required: true);
++        $type = ProductType::where('handle', 't-shirts')->first();
++
++        Product::factory()->create([
++            'product_type_id' => $type->id,
++            'attribute_data' => collect(['material' => new Text('')]),
++        ]);
++
++        $stats = app(SchemaHealthReport::class)->forType('t-shirts');
++
++        $this->assertSame(0, $stats->complete);
++        $this->assertSame(1, $stats->missing);
++    }
++
++    public function test_compute_returns_one_entry_per_product_type(): void
++    {
++        $this->seedLunarBaseData();
++
++        ProductSchema::productType('t-shirts')->attribute('material', required: true);
++        ProductSchema::productType('shoes')->attribute('size', required: true);
++        ProductSchema::productType('bags');
++
++        $stats = app(SchemaHealthReport::class)->compute();
++
++        $this->assertCount(3, $stats);
++        $handles = collect($stats)->pluck('productType.handle')->all();
++        $this->assertContains('t-shirts', $handles);
++        $this->assertContains('shoes', $handles);
++        $this->assertContains('bags', $handles);
++    }
++
++    public function test_for_type_returns_null_for_unknown_handle(): void
++    {
++        $stats = app(SchemaHealthReport::class)->forType('nonexistent');
++
++        $this->assertNull($stats);
++    }
++
++    public function test_products_missing_returns_only_offenders(): void
++    {
++        $this->seedLunarBaseData();
++
++        ProductSchema::productType('t-shirts')->attribute('material', required: true);
++        $type = ProductType::where('handle', 't-shirts')->first();
++
++        $offender = Product::factory()->create([
++            'product_type_id' => $type->id,
++            'attribute_data' => collect([]),
++        ]);
++        $compliant = Product::factory()->create([
++            'product_type_id' => $type->id,
++            'attribute_data' => collect(['material' => new Text('cotton')]),
++        ]);
++
++        $missing = app(SchemaHealthReport::class)
++            ->productsMissing('t-shirts', 'material');
++
++        $this->assertCount(1, $missing);
++        $this->assertSame($offender->id, $missing->first()->id);
++    }
++
++    public function test_complete_percentage_handles_zero_products(): void
++    {
++        $this->seedLunarBaseData();
++
++        ProductSchema::productType('t-shirts')->attribute('material', required: true);
++
++        $stats = app(SchemaHealthReport::class)->forType('t-shirts');
++
++        $this->assertSame(0.0, $stats->completePercentage());
++    }
++
++    public function test_complete_percentage_calculates_correctly(): void
++    {
++        $this->seedLunarBaseData();
++
++        ProductSchema::productType('t-shirts')->attribute('material', required: true);
++        $type = ProductType::where('handle', 't-shirts')->first();
++
++        // 4 complete, 1 missing — 80% complete.
++        for ($i = 0; $i < 4; $i++) {
++            Product::factory()->create([
++                'product_type_id' => $type->id,
++                'attribute_data' => collect(['material' => new Text("v{$i}")]),
++            ]);
++        }
++        Product::factory()->create([
++            'product_type_id' => $type->id,
++            'attribute_data' => collect([]),
++        ]);
++
++        $stats = app(SchemaHealthReport::class)->forType('t-shirts');
++
++        $this->assertSame(80.0, $stats->completePercentage());
++    }
++}

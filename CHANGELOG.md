@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-05-19
+
+### Removed
+- **Filament Schema Health page, widget, plugin, views and translations.** The admin UI lives in `patches/0001-filament-schema-health.patch` for anyone who wants to apply it locally. The `filament/filament` dev dependency and `suggest` entry are gone.
+- `SchemaHealthReport` / `ProductTypeHealth` services and their feature test. The same computation now lives inside the health check below.
+
+### Added
+- `ProductSchemaHealthCheck` — a `spatie/laravel-health` check that flags ProductTypes whose products are missing `required` attribute data. Tunable via `minCompletePercentage()` / `warningCompletePercentage()`; `meta` carries totals plus a per-ProductType breakdown.
+- `spatie/laravel-health` moved to `require-dev` and listed under `suggest`.
+
 ## [1.2.1] - 2026-04-28
 
 ### Changed
