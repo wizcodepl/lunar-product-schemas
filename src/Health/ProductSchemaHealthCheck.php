@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Health;
 
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductType;
 use Spatie\Health\Checks\Check;
 use Spatie\Health\Checks\Result;
 
@@ -41,7 +41,7 @@ class ProductSchemaHealthCheck extends Check
 
         $types = ProductType::query()
             ->with(['mappedAttributes' => function ($q) {
-                $q->where('attribute_type', Product::morphName())
+                $q->whereHas('models', fn ($m) => $m->where('model_type', Product::morphName()))
                     ->where('required', true);
             }])
             ->orderBy('id')

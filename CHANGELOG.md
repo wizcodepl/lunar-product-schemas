@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0-beta.1] - 2026-07-02
+
+### Changed (BREAKING — Lunar v2)
+- Requires `lunarphp/core: ^2.0` and PHP 8.4.
+- Ported to the `Lunar\Core\…` namespace (models, field types).
+- Attribute model-type association moved from the removed `attributes.attribute_type`
+  column to the `attribute_models` pivot (`model_type` morph name). `handle` is now
+  globally unique — one attribute per handle, mappable to multiple model types.
+- `attribute_groups.attributable_type` removed — groups no longer bound to a model type.
+- `Attribute.type` now stores a field-type key (e.g. `text`, via `FieldTypeEnum`)
+  instead of a FieldType class string.
+- Product-type ↔ attribute mapping via `product_type_attribute`; product vs variant
+  scoping via `ProductType::productAttributes()` / `variantAttributes()`.
+- `attribute_data` is id-keyed in v2 — renaming an attribute handle no longer rewrites
+  stored product/variant data.
+- Removed manual `lunar_attributables` pivot cleanup on drop (v2 cascades pivots).
+
+### Notes
+- In v2 `name` / `description` are dedicated translatable columns on `products` (not
+  attributes) — do not declare them as required attributes in schemas.
+- **Beta:** ported against the Lunar 2.x source; the test suite has NOT yet been re-run
+  against a real Lunar v2 install. Finalise `2.0.0` once tests pass on v2.
+
 ## [1.5.1] - 2026-05-19
 
 ### Removed

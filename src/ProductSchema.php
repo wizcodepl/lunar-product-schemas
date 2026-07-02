@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas;
 
-use Illuminate\Support\Facades\DB;
-use Lunar\Models\Attribute;
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
-use Lunar\Models\ProductVariant;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductType;
+use Lunar\Core\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\Builders\AttributeBuilder;
 use WizcodePl\LunarProductSchemas\Builders\ProductTypeBuilder;
 use WizcodePl\LunarProductSchemas\Builders\ProductTypesBuilder;
@@ -69,27 +68,23 @@ class ProductSchema
      */
     public static function dropAttribute(string $handle): void
     {
-        $attribute = Attribute::query()
-            ->where('handle', $handle)
-            ->whereIn('attribute_type', [Product::morphName(), ProductVariant::morphName()])
-            ->first();
+        $attribute = Attribute::query()->where('handle', $handle)->first();
 
         if (! $attribute) {
             return;
         }
 
-        if ($attribute->attribute_type === ProductVariant::morphName()) {
+        // Strip stored values from whichever layer(s) the attribute maps to.
+        $modelTypes = $attribute->models->pluck('model_type');
+        if ($modelTypes->contains(ProductVariant::morphName())) {
             self::stripAttributeFromVariants($handle);
-        } else {
+        }
+        if ($modelTypes->contains(Product::morphName())) {
             self::stripAttributeFromProducts($handle);
         }
 
-        // Lunar uses a polymorphic pivot (lunar_attributables) that lacks cascade.
-        // Wipe pivot rows manually before deleting the attribute itself.
-        DB::table(config('lunar.database.table_prefix').'attributables')
-            ->where('attribute_id', $attribute->id)
-            ->delete();
-
+        // Lunar v2 cascades the attribute_models + product_type_attribute pivots
+        // on delete, so no manual pivot cleanup is needed.
         $attribute->delete();
     }
 

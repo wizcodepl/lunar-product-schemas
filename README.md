@@ -10,6 +10,10 @@
 
 Migration-style schema builder for [Lunar](https://lunarphp.io) product types and attributes. Manage `searchable` / `filterable` / `required` flags, attach or detach attributes per product type (both **product-level** and **variant-level**), rename or drop attributes (with cleanup of values stored in `attribute_data` JSON on either layer) — all from versioned definition files that ship with your code.
 
+> **Kompatybilność z Lunarem:** linia **`1.x`** celuje w **Lunar v1** (`lunarphp/core ^1.3`);
+> linia **`2.x`** celuje w **Lunar v2** (`lunarphp/core ^2.0`, PHP 8.4) i jest obecnie w
+> **becie**. Instaluj `^1.0` w projektach v1, `^2.0@beta` w projektach v2.
+
 Inspired by Laravel's `Schema::table()` builder, but for the catalog layer Lunar exposes through `Attribute`, `AttributeGroup`, and `ProductType`.
 
 ## Why

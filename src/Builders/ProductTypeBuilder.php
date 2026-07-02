@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace WizcodePl\LunarProductSchemas\Builders;
 
 use Illuminate\Support\Str;
-use Lunar\FieldTypes\Text;
-use Lunar\Models\Attribute;
-use Lunar\Models\AttributeGroup;
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
-use Lunar\Models\ProductVariant;
+use Lunar\Core\Enums\FieldTypeEnum;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\AttributeGroup;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductType;
+use Lunar\Core\Models\ProductVariant;
 
 class ProductTypeBuilder
 {
@@ -30,13 +30,6 @@ class ProductTypeBuilder
         }
     }
 
-    /**
-     * Define (create or update) a product-level attribute and attach it to this product type.
-     * Values land in `Product.attribute_data` JSON.
-     *
-     * @param string|array<string,string>|null $name Localized name. String wraps in [locale => name] using app()->getLocale().
-     * @param string|array<string,string>|null $groupName Same convention as $name.
-     */
     public function attribute(
         string $handle,
         string|array|null $name = null,
@@ -49,29 +42,12 @@ class ProductTypeBuilder
         ?array $configuration = null,
     ): self {
         return $this->upsertAttribute(
-            attributableType: Product::morphName(),
-            handle: $handle,
-            name: $name,
-            type: $type,
-            group: $group,
-            groupName: $groupName,
-            searchable: $searchable,
-            filterable: $filterable,
-            required: $required,
-            configuration: $configuration,
+            modelType: Product::morphName(),
+            handle: $handle, name: $name, type: $type, group: $group, groupName: $groupName,
+            searchable: $searchable, filterable: $filterable, required: $required, configuration: $configuration,
         );
     }
 
-    /**
-     * Define (create or update) a variant-level attribute and attach it to this product type.
-     * Values land in `ProductVariant.attribute_data` JSON. Use this for per-SKU descriptive
-     * data the customer doesn't pick (lead time, batch number, pantone code, etc.).
-     *
-     * For customer-pickable variant axes (Size, Color), use ProductOption — out of scope for this package.
-     *
-     * @param string|array<string,string>|null $name Localized name. String wraps in [locale => name] using app()->getLocale().
-     * @param string|array<string,string>|null $groupName Same convention as $name.
-     */
     public function variantAttribute(
         string $handle,
         string|array|null $name = null,
@@ -84,100 +60,27 @@ class ProductTypeBuilder
         ?array $configuration = null,
     ): self {
         return $this->upsertAttribute(
-            attributableType: ProductVariant::morphName(),
-            handle: $handle,
-            name: $name,
-            type: $type,
-            group: $group,
-            groupName: $groupName,
-            searchable: $searchable,
-            filterable: $filterable,
-            required: $required,
-            configuration: $configuration,
+            modelType: ProductVariant::morphName(),
+            handle: $handle, name: $name, type: $type, group: $group, groupName: $groupName,
+            searchable: $searchable, filterable: $filterable, required: $required, configuration: $configuration,
         );
     }
 
-    /**
-     * Detach a product-level attribute from this product type and strip its values from this
-     * type's products. Other product types still using the attribute (and their products) are
-     * untouched.
-     */
     public function dropAttribute(string $handle): self
     {
-        $attribute = Attribute::query()
-            ->where('handle', $handle)
-            ->where('attribute_type', Product::morphName())
-            ->first();
-
-        if (! $attribute) {
-            return $this;
-        }
-
-        $this->type->mappedAttributes()->detach($attribute->id);
-
-        Product::query()
-            ->where('product_type_id', $this->type->id)
-            ->chunkById(500, function ($products) use ($handle) {
-                foreach ($products as $product) {
-                    $data = $product->attribute_data;
-                    if ($data?->has($handle)) {
-                        $data->forget($handle);
-                        $product->attribute_data = $data;
-                        $product->saveQuietly();
-                    }
-                }
-            });
-
-        return $this;
+        return $this->detachAndStrip($handle, Product::morphName());
     }
 
-    /**
-     * Detach a variant-level attribute from this product type and strip its values from
-     * the variants of products of this type. Other product types still using the attribute
-     * (and their variants) are untouched.
-     */
     public function dropVariantAttribute(string $handle): self
     {
-        $attribute = Attribute::query()
-            ->where('handle', $handle)
-            ->where('attribute_type', ProductVariant::morphName())
-            ->first();
-
-        if (! $attribute) {
-            return $this;
-        }
-
-        $this->type->mappedAttributes()->detach($attribute->id);
-
-        ProductVariant::query()
-            ->whereHas('product', fn ($query) => $query->where('product_type_id', $this->type->id))
-            ->chunkById(500, function ($variants) use ($handle) {
-                foreach ($variants as $variant) {
-                    $data = $variant->attribute_data;
-                    if ($data?->has($handle)) {
-                        $data->forget($handle);
-                        $variant->attribute_data = $data;
-                        $variant->saveQuietly();
-                    }
-                }
-            });
-
-        return $this;
+        return $this->detachAndStrip($handle, ProductVariant::morphName());
     }
 
-    /**
-     * Detach all product-level attributes whose handles are NOT in the provided list.
-     * Variant-level attributes attached to this type are untouched.
-     */
     public function syncAttributes(array $keep): self
     {
         return $this->syncAttributesOfType(Product::morphName(), $keep);
     }
 
-    /**
-     * Detach all variant-level attributes whose handles are NOT in the provided list.
-     * Product-level attributes attached to this type are untouched.
-     */
     public function syncVariantAttributes(array $keep): self
     {
         return $this->syncAttributesOfType(ProductVariant::morphName(), $keep);
@@ -199,7 +102,7 @@ class ProductTypeBuilder
     }
 
     private function upsertAttribute(
-        string $attributableType,
+        string $modelType,
         string $handle,
         string|array|null $name,
         ?string $type,
@@ -210,31 +113,25 @@ class ProductTypeBuilder
         ?bool $required,
         ?array $configuration,
     ): self {
-        // Lunar's `lunar_attribute_groups.handle` has a global UNIQUE constraint — it is NOT
-        // scoped by `attributable_type`. So we look up by handle alone and reuse whatever
-        // group already exists; `attributable_type` is only set on first create. Without this
-        // reuse, defining a variant attribute in the same logical group as a product attribute
-        // (e.g. both in 'general') would crash with a UniqueConstraintViolationException.
+        // Lunar v2: attribute groups are no longer bound to a model type
+        // (`attributable_type` column is gone); `handle` is globally unique.
         $attributeGroup = AttributeGroup::firstOrCreate(
             ['handle' => $group],
             [
-                'attributable_type' => $attributableType,
                 'name' => self::localized($groupName ?? Str::headline($group)),
                 'position' => self::nextGroupPosition(),
             ],
         );
 
-        $existing = Attribute::query()
-            ->where('handle', $handle)
-            ->where('attribute_type', $attributableType)
-            ->first();
+        // v2: `handle` is globally unique — one Attribute per handle, mapped to
+        // one or more model types via the `attribute_models` pivot.
+        $existing = Attribute::query()->where('handle', $handle)->first();
 
-        // Only include keys the caller explicitly passed; null means "leave as-is".
         $payload = array_filter(
             [
                 'attribute_group_id' => $attributeGroup->id,
                 'name' => $name !== null ? self::localized($name) : null,
-                'type' => $type,
+                'type' => self::fieldTypeKey($type),
                 'searchable' => $searchable,
                 'filterable' => $filterable,
                 'required' => $required,
@@ -244,63 +141,107 @@ class ProductTypeBuilder
         );
 
         if ($existing === null) {
-            // Defaults applied on first create only. `name` is required by the schema,
-            // so derive a readable fallback from the handle when the caller omits it.
             $payload += [
                 'name' => self::localized(Str::headline($handle)),
-                'type' => Text::class,
+                'type' => FieldTypeEnum::Text->value,
                 'searchable' => true,
                 'filterable' => false,
                 'required' => false,
                 'system' => false,
-                'section' => 'main',
                 'position' => ((int) Attribute::query()
                     ->where('attribute_group_id', $attributeGroup->id)
                     ->max('position')) + 1,
                 'configuration' => [],
-                'description' => self::localized(''),
             ];
         }
 
-        $attribute = Attribute::updateOrCreate(
-            [
-                'handle' => $handle,
-                'attribute_type' => $attributableType,
-            ],
-            $payload,
-        );
+        $attribute = Attribute::updateOrCreate(['handle' => $handle], $payload);
 
-        if (! $this->type->mappedAttributes()->where('attribute_id', $attribute->id)->exists()) {
-            $this->type->mappedAttributes()->attach($attribute->id);
+        // Ensure the model-type mapping (product / product_variant) exists.
+        $attribute->models()->firstOrCreate(['model_type' => $modelType]);
+
+        // Attach to this product type (idempotent) via product_type_attribute.
+        $this->type->mappedAttributes()->syncWithoutDetaching([$attribute->id]);
+
+        return $this;
+    }
+
+    private function detachAndStrip(string $handle, string $modelType): self
+    {
+        $attribute = Attribute::query()
+            ->where('handle', $handle)
+            ->whereHas('models', fn ($query) => $query->where('model_type', $modelType))
+            ->first();
+
+        if (! $attribute) {
+            return $this;
+        }
+
+        $this->type->mappedAttributes()->detach($attribute->id);
+
+        $isVariant = $modelType === ProductVariant::morphName();
+
+        if ($isVariant) {
+            ProductVariant::query()
+                ->whereHas('product', fn ($query) => $query->where('product_type_id', $this->type->id))
+                ->chunkById(500, fn ($rows) => self::stripKey($rows, $handle));
+        } else {
+            Product::query()
+                ->where('product_type_id', $this->type->id)
+                ->chunkById(500, fn ($rows) => self::stripKey($rows, $handle));
         }
 
         return $this;
     }
 
-    private function syncAttributesOfType(string $attributableType, array $keep): self
+    private function syncAttributesOfType(string $modelType, array $keep): self
     {
         $keepIds = Attribute::query()
             ->whereIn('handle', $keep)
-            ->where('attribute_type', $attributableType)
+            ->whereHas('models', fn ($query) => $query->where('model_type', $modelType))
             ->pluck('id');
 
-        $currentIdsForType = $this->type->mappedAttributes()
-            ->where('attribute_type', $attributableType)
-            ->pluck('attribute_id');
+        $currentIds = $this->type->mappedAttributes()
+            ->whereHas('models', fn ($query) => $query->where('model_type', $modelType))
+            ->get()
+            ->pluck('id');
 
-        $toDetach = $currentIdsForType->diff($keepIds);
-
+        $toDetach = $currentIds->diff($keepIds);
         if ($toDetach->isNotEmpty()) {
             $this->type->mappedAttributes()->detach($toDetach->all());
         }
 
-        // Attach any keep-list IDs that aren't yet attached (idempotent).
-        $toAttach = $keepIds->diff($currentIdsForType);
-        foreach ($toAttach as $id) {
-            $this->type->mappedAttributes()->attach($id);
+        $toAttach = $keepIds->diff($currentIds);
+        if ($toAttach->isNotEmpty()) {
+            $this->type->mappedAttributes()->syncWithoutDetaching($toAttach->all());
         }
 
         return $this;
+    }
+
+    private static function stripKey(iterable $rows, string $handle): void
+    {
+        foreach ($rows as $row) {
+            $data = $row->attribute_data;
+            if ($data?->has($handle)) {
+                $data->forget($handle);
+                $row->attribute_data = $data;
+                $row->saveQuietly();
+            }
+        }
+    }
+
+    /**
+     * Normalise a field-type reference to a v2 field-type key (e.g. `text`).
+     * Accepts a key as-is, or a FieldType class string (mapped to its key).
+     */
+    private static function fieldTypeKey(?string $type): ?string
+    {
+        if ($type === null) {
+            return null;
+        }
+
+        return str_contains($type, '\\') ? Str::snake(class_basename($type)) : $type;
     }
 
     private static function nextGroupPosition(): int
@@ -309,15 +250,11 @@ class ProductTypeBuilder
     }
 
     /**
-     * @param string|array<string,string> $value
+     * @param  string|array<string,string>  $value
      * @return array<string,string>
      */
     private static function localized(string|array $value): array
     {
-        if (is_array($value)) {
-            return $value;
-        }
-
-        return [app()->getLocale() => $value];
+        return is_array($value) ? $value : [app()->getLocale() => $value];
     }
 }
