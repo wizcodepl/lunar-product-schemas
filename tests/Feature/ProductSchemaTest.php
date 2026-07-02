@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
-use Lunar\FieldTypes\Text;
-use Lunar\Models\Attribute;
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
+use Lunar\Core\FieldTypes\Text;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductType;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 
@@ -29,11 +29,11 @@ class ProductSchemaTest extends TestCase
         ProductSchema::productType('shoes')->attribute('color');
 
         $attrId = Attribute::where('handle', 'color')->value('id');
-        $this->assertSame(2, DB::table('lunar_attributables')->where('attribute_id', $attrId)->count());
+        $this->assertSame(2, DB::table('lunar_product_type_attribute')->where('attribute_id', $attrId)->count());
 
         ProductSchema::dropAttribute('color');
 
-        $this->assertSame(0, DB::table('lunar_attributables')->where('attribute_id', $attrId)->count());
+        $this->assertSame(0, DB::table('lunar_product_type_attribute')->where('attribute_id', $attrId)->count());
     }
 
     public function test_drop_attribute_strips_value_from_every_product(): void

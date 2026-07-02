@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
-use Lunar\Models\Attribute;
-use Lunar\Models\ProductType;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\ProductType;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 

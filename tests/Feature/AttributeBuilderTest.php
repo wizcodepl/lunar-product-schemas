@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Lunar\FieldTypes\Text;
-use Lunar\Models\Attribute;
-use Lunar\Models\Product;
+use Lunar\Core\FieldTypes\Text;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\Product;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 

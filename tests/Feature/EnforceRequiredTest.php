@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
-use Lunar\FieldTypes\Text;
-use Lunar\FieldTypes\TranslatedText;
-use Lunar\Models\Product;
-use Lunar\Models\ProductVariant;
-use Lunar\Models\TaxClass;
+use Lunar\Core\FieldTypes\Text;
+use Lunar\Core\FieldTypes\TranslatedText;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductVariant;
+use Lunar\Core\Models\TaxClass;
 use WizcodePl\LunarProductSchemas\Exceptions\MissingRequiredAttributeException;
 use WizcodePl\LunarProductSchemas\Observers\ProductSchemaObserver;
 use WizcodePl\LunarProductSchemas\Observers\ProductVariantSchemaObserver;

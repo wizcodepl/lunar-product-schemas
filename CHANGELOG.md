@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0-beta.2] - 2026-07-02
+
+### Changed
+- Test suite ported to v2 semantics: `Lunar\Core\…` namespaces, attribute
+  model-type via `attribute_models` pivot, `product_type_attribute` mapping.
+  Two v1-only tests (`attribute_groups.attributable_type`, same-handle-both-layers)
+  are `markTestSkipped`.
+
+### Notes
+- **Still unverified against a real Lunar v2 install.** Product setups that put
+  `name` in `attribute_data` and FieldType constructors + the testbench boot
+  (`getPackageProviders`) need a v2 run to finalise. Do NOT treat green-on-v1 as green.
+
 ## [2.0.0-beta.1] - 2026-07-02
 
 ### Changed (BREAKING — Lunar v2)

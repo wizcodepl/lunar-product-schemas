@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
-use Lunar\FieldTypes\Text;
-use Lunar\Models\Attribute;
-use Lunar\Models\AttributeGroup;
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
-use Lunar\Models\ProductVariant;
+use Lunar\Core\FieldTypes\Text;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\AttributeGroup;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductType;
+use Lunar\Core\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 
@@ -22,7 +22,7 @@ class VariantAttributesTest extends TestCase
         $attr = Attribute::where('handle', 'lead_time_days')->first();
 
         $this->assertNotNull($attr);
-        $this->assertSame(ProductVariant::morphName(), $attr->attribute_type);
+        $this->assertTrue($attr->models()->where("model_type", ProductVariant::morphName())->exists());
     }
 
     public function test_variant_attribute_creates_with_sane_defaults(): void
@@ -48,7 +48,7 @@ class VariantAttributesTest extends TestCase
         );
 
         $attr = Attribute::where('handle', 'lead_time_days')
-            ->where('attribute_type', ProductVariant::morphName())
+            ->whereHas("models", fn ($q) => $q->where("model_type", ProductVariant::morphName()))
             ->first();
 
         $this->assertTrue((bool) $attr->filterable);
@@ -71,7 +71,7 @@ class VariantAttributesTest extends TestCase
         );
 
         $attr = Attribute::where('handle', 'lead_time_days')
-            ->where('attribute_type', ProductVariant::morphName())
+            ->whereHas("models", fn ($q) => $q->where("model_type", ProductVariant::morphName()))
             ->first();
 
         $this->assertTrue((bool) $attr->filterable, 'filterable should be preserved');
@@ -85,7 +85,7 @@ class VariantAttributesTest extends TestCase
         ProductSchema::productType('t-shirts')->variantAttribute('lead_time_days', filterable: false);
 
         $attr = Attribute::where('handle', 'lead_time_days')
-            ->where('attribute_type', ProductVariant::morphName())
+            ->whereHas("models", fn ($q) => $q->where("model_type", ProductVariant::morphName()))
             ->first();
 
         $this->assertFalse((bool) $attr->filterable);
@@ -101,7 +101,7 @@ class VariantAttributesTest extends TestCase
             ->required(true);
 
         $attr = Attribute::where('handle', 'lead_time_days')
-            ->where('attribute_type', ProductVariant::morphName())
+            ->whereHas("models", fn ($q) => $q->where("model_type", ProductVariant::morphName()))
             ->first();
 
         $this->assertTrue((bool) $attr->filterable);
@@ -119,10 +119,10 @@ class VariantAttributesTest extends TestCase
         ProductSchema::variantAttribute('notes')->required(true);
 
         $productAttr = Attribute::where('handle', 'notes')
-            ->where('attribute_type', Product::morphName())
+            ->whereHas("models", fn ($q) => $q->where("model_type", Product::morphName()))
             ->first();
         $variantAttr = Attribute::where('handle', 'notes')
-            ->where('attribute_type', ProductVariant::morphName())
+            ->whereHas("models", fn ($q) => $q->where("model_type", ProductVariant::morphName()))
             ->first();
 
         $this->assertTrue((bool) $productAttr->filterable, 'product layer flag untouched');
@@ -293,6 +293,7 @@ class VariantAttributesTest extends TestCase
 
     public function test_global_drop_attribute_does_not_strip_product_level_value_on_variant_drop(): void
     {
+        $this->markTestSkipped('v1-only: attribute handle is globally unique in Lunar v2, so the same handle cannot exist as two separate layer attributes.');
         $this->seedLunarBaseData();
 
         // Same handle on both layers (Lunar allows it — different attribute_type).
@@ -338,10 +339,9 @@ class VariantAttributesTest extends TestCase
         $this->assertFalse($data->has('lead_time_days'));
         $this->assertTrue($data->has('processing_days'));
         $this->assertSame('14', (string) $data->get('processing_days'));
-        $this->assertDatabaseHas('lunar_attributes', [
-            'handle' => 'processing_days',
-            'attribute_type' => ProductVariant::morphName(),
-        ]);
+        $this->assertDatabaseHas('lunar_attributes', ['handle' => 'processing_days']);
+        $renamed = Attribute::where('handle', 'processing_days')->first();
+        $this->assertTrue($renamed->models()->where('model_type', ProductVariant::morphName())->exists());
     }
 
     public function test_product_types_builder_fanout_variant_attribute(): void
@@ -351,7 +351,7 @@ class VariantAttributesTest extends TestCase
 
         $attr = Attribute::where('handle', 'lead_time_days')->first();
         $this->assertNotNull($attr);
-        $this->assertSame(ProductVariant::morphName(), $attr->attribute_type);
+        $this->assertTrue($attr->models()->where("model_type", ProductVariant::morphName())->exists());
 
         foreach (['t-shirts', 'shoes', 'bags'] as $handle) {
             $type = ProductType::where('handle', $handle)->first();
@@ -412,6 +412,7 @@ class VariantAttributesTest extends TestCase
 
     public function test_group_attributable_type_set_on_first_create_is_preserved(): void
     {
+        $this->markTestSkipped('v1-only: attribute_groups.attributable_type removed in Lunar v2.');
         // Whichever side creates the group first wins for `attributable_type`. It's an
         // informational marker on the row — not a uniqueness key — so we don't try to flip it.
         ProductSchema::productType('t-shirts')

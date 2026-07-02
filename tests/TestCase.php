@@ -8,11 +8,11 @@ use Cartalyst\Converter\Laravel\ConverterServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Kalnoy\Nestedset\NestedSetServiceProvider;
 use Laravel\Scout\ScoutServiceProvider;
-use Lunar\LunarServiceProvider;
-use Lunar\Models\Channel;
-use Lunar\Models\Currency;
-use Lunar\Models\Language;
-use Lunar\Models\TaxClass;
+use Lunar\Core\LunarServiceProvider;
+use Lunar\Core\Models\Channel;
+use Lunar\Core\Models\Currency;
+use Lunar\Core\Models\Language;
+use Lunar\Core\Models\TaxClass;
 
 use function Orchestra\Testbench\default_migration_path;
 use function Orchestra\Testbench\load_migration_paths;

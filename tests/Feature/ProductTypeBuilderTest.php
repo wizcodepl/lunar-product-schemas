@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
-use Lunar\FieldTypes\Text;
-use Lunar\Models\Attribute;
-use Lunar\Models\AttributeGroup;
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
-use Lunar\Models\ProductVariant;
+use Lunar\Core\FieldTypes\Text;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\AttributeGroup;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductType;
+use Lunar\Core\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 
@@ -53,7 +53,7 @@ class ProductTypeBuilderTest extends TestCase
     {
         ProductSchema::productType('t-shirts')->attribute('color');
 
-        $attr = Attribute::where('handle', 'color')->where('attribute_type', Product::morphName())->first();
+        $attr = Attribute::where('handle', 'color')->whereHas("models", fn ($q) => $q->where("model_type", Product::morphName()))->first();
 
         $this->assertNotNull($attr);
         $this->assertSame(Text::class, $attr->type);
@@ -219,7 +219,7 @@ class ProductTypeBuilderTest extends TestCase
     {
         ProductSchema::productType('t-shirts')->attribute('description', configuration: ['richtext' => true]);
 
-        $config = Attribute::where('handle', 'description')->where('attribute_type', Product::morphName())->value('configuration');
+        $config = Attribute::where('handle', 'description')->whereHas("models", fn ($q) => $q->where("model_type", Product::morphName()))->value('configuration');
         $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
     }
 
@@ -227,7 +227,7 @@ class ProductTypeBuilderTest extends TestCase
     {
         ProductSchema::productType('t-shirts')->variantAttribute('variant_notes', configuration: ['richtext' => true]);
 
-        $config = Attribute::where('handle', 'variant_notes')->where('attribute_type', ProductVariant::morphName())->value('configuration');
+        $config = Attribute::where('handle', 'variant_notes')->whereHas("models", fn ($q) => $q->where("model_type", ProductVariant::morphName()))->value('configuration');
         $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
     }
 
@@ -236,7 +236,7 @@ class ProductTypeBuilderTest extends TestCase
         ProductSchema::productType('t-shirts')->attribute('description', configuration: ['richtext' => true]);
         ProductSchema::productType('t-shirts')->attribute('description', filterable: true);
 
-        $config = Attribute::where('handle', 'description')->where('attribute_type', Product::morphName())->value('configuration');
+        $config = Attribute::where('handle', 'description')->whereHas("models", fn ($q) => $q->where("model_type", Product::morphName()))->value('configuration');
         $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
     }
 }
