@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
+use Lunar\Core\Enums\FieldTypeEnum;
 use Lunar\Core\FieldTypes\Text;
 use Lunar\Core\FieldTypes\TranslatedText;
 use Lunar\Core\Models\Product;
@@ -34,15 +35,16 @@ class EnforceRequiredTest extends TestCase
     public function test_saves_product_when_all_required_attributes_present(): void
     {
         $type = ProductSchema::productType('shirt')
-            ->attribute('name', name: ['en' => 'Name'], type: TranslatedText::class, group: 'general', groupName: ['en' => 'General'], required: true)
-            ->attribute('product_brand', name: ['en' => 'Brand'], group: 'general', groupName: ['en' => 'General'], required: true)
+            ->attribute('subtitle', name: 'Subtitle', type: FieldTypeEnum::TranslatedText, group: 'general', groupName: 'General', required: true)
+            ->attribute('product_brand', name: 'Brand', group: 'general', groupName: 'General', required: true)
             ->model();
 
         $product = Product::create([
             'product_type_id' => $type->id,
             'status' => 'published',
+            'name' => ['en' => 'Tee'],
             'attribute_data' => [
-                'name' => new TranslatedText(collect(['en' => 'Tee'])),
+                'subtitle' => new TranslatedText(collect(['en' => 'Soft cotton tee'])),
                 'product_brand' => new Text('Acme'),
             ],
         ]);
@@ -53,8 +55,8 @@ class EnforceRequiredTest extends TestCase
     public function test_throws_when_required_product_attribute_is_missing(): void
     {
         $type = ProductSchema::productType('shirt')
-            ->attribute('name', name: ['en' => 'Name'], type: TranslatedText::class, group: 'general', groupName: ['en' => 'General'], required: true)
-            ->attribute('product_brand', name: ['en' => 'Brand'], group: 'general', groupName: ['en' => 'General'], required: true)
+            ->attribute('subtitle', name: 'Subtitle', type: FieldTypeEnum::TranslatedText, group: 'general', groupName: 'General', required: true)
+            ->attribute('product_brand', name: 'Brand', group: 'general', groupName: 'General', required: true)
             ->model();
 
         $this->expectException(MissingRequiredAttributeException::class);
@@ -63,8 +65,9 @@ class EnforceRequiredTest extends TestCase
         Product::create([
             'product_type_id' => $type->id,
             'status' => 'published',
+            'name' => ['en' => 'Tee'],
             'attribute_data' => [
-                'name' => new TranslatedText(collect(['en' => 'Tee'])),
+                'subtitle' => new TranslatedText(collect(['en' => 'Soft cotton tee'])),
             ],
         ]);
     }
@@ -72,7 +75,7 @@ class EnforceRequiredTest extends TestCase
     public function test_throws_when_required_attribute_is_empty_string(): void
     {
         $type = ProductSchema::productType('shirt')
-            ->attribute('product_brand', name: ['en' => 'Brand'], group: 'general', groupName: ['en' => 'General'], required: true)
+            ->attribute('product_brand', name: 'Brand', group: 'general', groupName: 'General', required: true)
             ->model();
 
         $this->expectException(MissingRequiredAttributeException::class);
@@ -81,6 +84,7 @@ class EnforceRequiredTest extends TestCase
         Product::create([
             'product_type_id' => $type->id,
             'status' => 'published',
+            'name' => ['en' => 'Tee'],
             'attribute_data' => [
                 'product_brand' => new Text(''),
             ],
@@ -90,15 +94,16 @@ class EnforceRequiredTest extends TestCase
     public function test_optional_missing_attributes_pass(): void
     {
         $type = ProductSchema::productType('shirt')
-            ->attribute('name', name: ['en' => 'Name'], type: TranslatedText::class, group: 'general', groupName: ['en' => 'General'], required: true)
-            ->attribute('product_brand', name: ['en' => 'Brand'], group: 'general', groupName: ['en' => 'General'])
+            ->attribute('subtitle', name: 'Subtitle', type: FieldTypeEnum::TranslatedText, group: 'general', groupName: 'General', required: true)
+            ->attribute('product_brand', name: 'Brand', group: 'general', groupName: 'General')
             ->model();
 
         $product = Product::create([
             'product_type_id' => $type->id,
             'status' => 'published',
+            'name' => ['en' => 'Tee'],
             'attribute_data' => [
-                'name' => new TranslatedText(collect(['en' => 'Tee'])),
+                'subtitle' => new TranslatedText(collect(['en' => 'Soft cotton tee'])),
             ],
         ]);
 
@@ -108,15 +113,16 @@ class EnforceRequiredTest extends TestCase
     public function test_throws_when_required_variant_attribute_is_missing(): void
     {
         $type = ProductSchema::productType('shirt')
-            ->attribute('name', name: ['en' => 'Name'], type: TranslatedText::class, group: 'general', groupName: ['en' => 'General'], required: true)
-            ->variantAttribute('variant_size', name: ['en' => 'Size'], group: 'general', groupName: ['en' => 'General'], required: true)
+            ->attribute('subtitle', name: 'Subtitle', type: FieldTypeEnum::TranslatedText, group: 'general', groupName: 'General', required: true)
+            ->variantAttribute('variant_size', name: 'Size', group: 'general', groupName: 'General', required: true)
             ->model();
 
         $product = Product::create([
             'product_type_id' => $type->id,
             'status' => 'published',
+            'name' => ['en' => 'Tee'],
             'attribute_data' => [
-                'name' => new TranslatedText(collect(['en' => 'Tee'])),
+                'subtitle' => new TranslatedText(collect(['en' => 'Soft cotton tee'])),
             ],
         ]);
 

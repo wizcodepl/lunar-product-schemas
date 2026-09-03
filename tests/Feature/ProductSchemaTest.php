@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
+use Lunar\Core\Exceptions\ProductTypeActionException;
 use Lunar\Core\FieldTypes\Text;
 use Lunar\Core\Models\Attribute;
 use Lunar\Core\Models\Product;
@@ -48,17 +49,20 @@ class ProductSchemaTest extends TestCase
 
         $tshirtsProduct = Product::factory()->create([
             'product_type_id' => $tshirts->id,
-            'attribute_data' => collect(['color' => new Text('red'), 'name' => new Text('A')]),
+            'attribute_data' => collect(['color' => new Text('red')]),
         ]);
         $shoesProduct = Product::factory()->create([
             'product_type_id' => $shoes->id,
-            'attribute_data' => collect(['color' => new Text('blue'), 'name' => new Text('B')]),
+            'attribute_data' => collect(['color' => new Text('blue')]),
         ]);
 
         ProductSchema::dropAttribute('color');
 
         $this->assertFalse($tshirtsProduct->fresh()->attribute_data->has('color'));
         $this->assertFalse($shoesProduct->fresh()->attribute_data->has('color'));
+
+        // Lunar's PurgeAttributeData job (sync queue in tests) reclaims the raw JSON key too.
+        $this->assertSame([], json_decode((string) $tshirtsProduct->fresh()->getRawOriginal('attribute_data'), true));
     }
 
     public function test_drop_attribute_is_noop_for_missing_handle(): void
@@ -77,5 +81,24 @@ class ProductSchemaTest extends TestCase
         $this->assertDatabaseMissing('lunar_product_types', ['handle' => 'legacy-products']);
         // Attribute itself stays — global drop is a separate operation.
         $this->assertDatabaseHas('lunar_attributes', ['handle' => 'color']);
+    }
+
+    public function test_drop_product_type_refuses_when_products_still_reference_it(): void
+    {
+        $this->seedLunarBaseData();
+
+        $type = ProductSchema::productType('legacy-products')->model();
+        Product::factory()->create(['product_type_id' => $type->id]);
+
+        $this->expectException(ProductTypeActionException::class);
+
+        ProductSchema::dropProductType('legacy-products');
+    }
+
+    public function test_drop_product_type_is_noop_for_missing_handle(): void
+    {
+        ProductSchema::dropProductType('does_not_exist');
+
+        $this->assertSame(0, ProductType::count());
     }
 }

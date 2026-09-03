@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Builders;
 
-use Illuminate\Support\Collection;
 use Lunar\Core\Models\Attribute;
 use Lunar\Core\Models\Product;
 
@@ -21,7 +20,7 @@ class AttributeBuilder
         // Lunar v2: an attribute's model-type association lives in the
         // `attribute_models` pivot (model_type = morph name), not a column.
         $this->attribute = Attribute::query()
-            ->where('handle', $handle)
+            ->where('handle', ProductTypeBuilder::normalizeHandle($handle))
             ->whereHas('models', fn ($query) => $query->where('model_type', $this->modelType))
             ->firstOrFail();
     }
@@ -41,16 +40,13 @@ class AttributeBuilder
         return $this->setFlag('required', $value);
     }
 
-    public function name(string $name, string $locale = 'en'): self
+    /**
+     * Set the display name. Lunar v2 stores attribute names as plain strings
+     * (no per-locale translations).
+     */
+    public function name(string $name): self
     {
-        $current = $this->attribute->name;
-        if ($current instanceof Collection) {
-            $current = $current->all();
-        }
-        $current = is_array($current) ? $current : [];
-        $current[$locale] = $name;
-
-        $this->attribute->update(['name' => $current]);
+        $this->attribute->update(['name' => $name]);
 
         return $this;
     }
@@ -62,6 +58,8 @@ class AttributeBuilder
      */
     public function rename(string $newHandle): self
     {
+        $newHandle = ProductTypeBuilder::normalizeHandle($newHandle);
+
         if ($this->attribute->handle !== $newHandle) {
             $this->attribute->update(['handle' => $newHandle]);
         }

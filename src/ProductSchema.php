@@ -23,7 +23,7 @@ use WizcodePl\LunarProductSchemas\Builders\ProductTypesBuilder;
  *       ->dropAttribute('legacy_field');
  *
  *   ProductSchema::attribute('material')->filterable(true);
- *   ProductSchema::dropAttribute('legacy_field');                   // detects type and cleans the right JSON layer
+ *   ProductSchema::dropAttribute('legacy_field');                   // detaches everywhere, deletes the row
  */
 class ProductSchema
 {
@@ -63,64 +63,34 @@ class ProductSchema
     }
 
     /**
-     * Drop an attribute (product-level or variant-level — auto-detected) from every product type
-     * and strip its values from the corresponding `attribute_data` JSON layer.
+     * Drop an attribute from every product type and delete the row.
+     *
+     * Lunar v2 does the cleanup itself: deleting an Attribute cascades the
+     * `attribute_models` and `product_type_attribute` pivots, and Lunar's
+     * AttributeObserver dispatches `PurgeAttributeData`, which strips the
+     * attribute's id key out of every Product / ProductVariant `attribute_data`
+     * (on your queue, if one is configured). Because `attribute_data` is
+     * id-keyed, the value is invisible to the model cast the moment the row
+     * is gone — the purge job only reclaims the JSON bytes.
      */
     public static function dropAttribute(string $handle): void
     {
-        $attribute = Attribute::query()->where('handle', $handle)->first();
+        $attribute = Attribute::query()
+            ->where('handle', ProductTypeBuilder::normalizeHandle($handle))
+            ->first();
 
-        if (! $attribute) {
-            return;
-        }
-
-        // Strip stored values from whichever layer(s) the attribute maps to.
-        $modelTypes = $attribute->models->pluck('model_type');
-        if ($modelTypes->contains(ProductVariant::morphName())) {
-            self::stripAttributeFromVariants($handle);
-        }
-        if ($modelTypes->contains(Product::morphName())) {
-            self::stripAttributeFromProducts($handle);
-        }
-
-        // Lunar v2 cascades the attribute_models + product_type_attribute pivots
-        // on delete, so no manual pivot cleanup is needed.
-        $attribute->delete();
+        $attribute?->delete();
     }
 
     /**
-     * Drop a product type. Lunar cascades the pivot, but products of this type are NOT deleted.
+     * Drop a product type. Lunar cascades the `product_type_attribute` pivot.
+     *
+     * Products are NOT deleted or reassigned: Lunar v2 refuses to delete a
+     * product type that still has products (`ProductTypeActionException`), so
+     * migrate them explicitly first.
      */
     public static function dropProductType(string $handle): void
     {
-        ProductType::where('handle', $handle)->delete();
-    }
-
-    private static function stripAttributeFromProducts(string $handle): void
-    {
-        Product::query()->chunkById(500, function ($products) use ($handle) {
-            foreach ($products as $product) {
-                $data = $product->attribute_data;
-                if ($data?->has($handle)) {
-                    $data->forget($handle);
-                    $product->attribute_data = $data;
-                    $product->saveQuietly();
-                }
-            }
-        });
-    }
-
-    private static function stripAttributeFromVariants(string $handle): void
-    {
-        ProductVariant::query()->chunkById(500, function ($variants) use ($handle) {
-            foreach ($variants as $variant) {
-                $data = $variant->attribute_data;
-                if ($data?->has($handle)) {
-                    $data->forget($handle);
-                    $variant->attribute_data = $data;
-                    $variant->saveQuietly();
-                }
-            }
-        });
+        ProductType::query()->where('handle', $handle)->first()?->delete();
     }
 }

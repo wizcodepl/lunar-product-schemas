@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Builders;
 
+use Lunar\Core\Enums\FieldTypeEnum;
+
 /**
  * Apply the same attribute schema to several product types in one chain.
  *
@@ -12,8 +14,8 @@ namespace WizcodePl\LunarProductSchemas\Builders;
  *       'shoes'    => 'Shoes',
  *       'bags'     => 'Bags',
  *   ])
- *       ->attribute('name', name: ['en' => 'Name'], type: TranslatedText::class, required: true)
- *       ->attribute('color', name: ['en' => 'Color'], filterable: true);
+ *       ->attribute('material', name: 'Material', type: FieldTypeEnum::TranslatedText, required: true)
+ *       ->attribute('color', name: 'Color', filterable: true);
  *
  * Each method call fans out to every underlying ProductTypeBuilder. Per-type
  * differences are handled with regular ProductSchema::productType(...) calls
@@ -40,7 +42,7 @@ class ProductTypesBuilder
     public function attribute(
         string $handle,
         string|array|null $name = null,
-        ?string $type = null,
+        FieldTypeEnum|string|null $type = null,
         string $group = 'spec',
         string|array|null $groupName = null,
         ?bool $searchable = null,
@@ -68,7 +70,7 @@ class ProductTypesBuilder
     public function variantAttribute(
         string $handle,
         string|array|null $name = null,
-        ?string $type = null,
+        FieldTypeEnum|string|null $type = null,
         string $group = 'variant_spec',
         string|array|null $groupName = null,
         ?bool $searchable = null,

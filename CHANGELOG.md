@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0-beta.3] - 2026-09-03
+
+First version actually run against a real Lunar v2 install (`lunarphp/core` 2.0.0-alpha.6,
+Laravel 13, PHP 8.4) — 96 tests green on SQLite. Everything below was found by that run.
+
+### Changed (BREAKING vs beta.2)
+- Attribute and attribute-group **names are plain strings** in v2 (no translations).
+  `name:` / `groupName:` still accept the v1 locale-keyed array (current locale wins,
+  first entry as fallback), but store a string. `AttributeBuilder::name()` lost its
+  `$locale` parameter.
+- Product-type ↔ attribute mapping now goes through `ProductType::attributeMapping()`
+  (v2's `mappedAttributes()` means the type's *own* attribute fields).
+- `type:` accepts `FieldTypeEnum`, a key, or a FieldType class; classes resolve through
+  `FieldTypeManifest` (so `ListField::class` → `list`, custom types work).
+- `ProductSchema::dropAttribute()` no longer walks products/variants: Lunar v2 cascades
+  the pivots and its `AttributeObserver` dispatches `PurgeAttributeData` itself.
+- `ProductSchema::dropProductType()` deletes through the model so Lunar v2's guard runs —
+  throws `ProductTypeActionException` when products still reference the type.
+- Handles are normalised with Lunar's own rule (`Str::slug($handle, '_')`) on every
+  lookup, matching what v2 stores.
+- Strict mode: Lunar v2's `AsAttributeData` cast discards handles that match no
+  Attribute at all *before* observers run; strict mode catches attributes that exist but
+  are not mapped to the product type. Documented in README + a test.
+- Test bootstrap mirrors Lunar 2.x's own suite: `Lunar\Nestedset` provider (Lunar's fork,
+  not `kalnoy/nestedset`), `spatie/laravel-permission`; `cartalyst/converter` and Scout
+  providers dropped.
+- `composer.json`: `minimum-stability: alpha` (+ `prefer-stable`) until Lunar 2.0 is
+  tagged stable.
+- CI: PHP 8.4/8.5 × Laravel 12/13 (testbench 10/11); MySQL job on Laravel 13; runs on
+  `2.x` as well as `main`.
+
+### Removed
+- Two v1-only tests that were `markTestSkipped` in beta.2 (same-handle-both-layers with
+  independent flags; `attribute_groups.attributable_type`).
+
 ## [2.0.0-beta.2] - 2026-07-02
 
 ### Changed

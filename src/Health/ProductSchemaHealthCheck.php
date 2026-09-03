@@ -40,7 +40,7 @@ class ProductSchemaHealthCheck extends Check
         $perType = [];
 
         $types = ProductType::query()
-            ->with(['mappedAttributes' => function ($q) {
+            ->with(['attributeMapping' => function ($q) {
                 $q->whereHas('models', fn ($m) => $m->where('model_type', Product::morphName()))
                     ->where('required', true);
             }])
@@ -102,7 +102,7 @@ class ProductSchemaHealthCheck extends Check
      */
     private function statsFor(ProductType $type): array
     {
-        $requiredHandles = $type->mappedAttributes->pluck('handle')->all();
+        $requiredHandles = $type->attributeMapping->pluck('handle')->all();
 
         $products = Product::query()
             ->where('product_type_id', $type->id)

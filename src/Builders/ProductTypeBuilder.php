@@ -6,6 +6,7 @@ namespace WizcodePl\LunarProductSchemas\Builders;
 
 use Illuminate\Support\Str;
 use Lunar\Core\Enums\FieldTypeEnum;
+use Lunar\Core\Facades\FieldTypeManifest;
 use Lunar\Core\Models\Attribute;
 use Lunar\Core\Models\AttributeGroup;
 use Lunar\Core\Models\Product;
@@ -33,7 +34,7 @@ class ProductTypeBuilder
     public function attribute(
         string $handle,
         string|array|null $name = null,
-        ?string $type = null,
+        FieldTypeEnum|string|null $type = null,
         string $group = 'spec',
         string|array|null $groupName = null,
         ?bool $searchable = null,
@@ -51,7 +52,7 @@ class ProductTypeBuilder
     public function variantAttribute(
         string $handle,
         string|array|null $name = null,
-        ?string $type = null,
+        FieldTypeEnum|string|null $type = null,
         string $group = 'variant_spec',
         string|array|null $groupName = null,
         ?bool $searchable = null,
@@ -105,7 +106,7 @@ class ProductTypeBuilder
         string $modelType,
         string $handle,
         string|array|null $name,
-        ?string $type,
+        FieldTypeEnum|string|null $type,
         string $group,
         string|array|null $groupName,
         ?bool $searchable,
@@ -113,12 +114,16 @@ class ProductTypeBuilder
         ?bool $required,
         ?array $configuration,
     ): self {
-        // Lunar v2: attribute groups are no longer bound to a model type
-        // (`attributable_type` column is gone); `handle` is globally unique.
+        $handle = self::normalizeHandle($handle);
+        $group = self::normalizeHandle($group);
+
+        // Lunar v2: attribute groups are not bound to a model type and their
+        // `handle` is globally unique, so product- and variant-level attributes
+        // may share a group.
         $attributeGroup = AttributeGroup::firstOrCreate(
             ['handle' => $group],
             [
-                'name' => self::localized($groupName ?? Str::headline($group)),
+                'name' => self::displayName($groupName ?? Str::headline($group)),
                 'position' => self::nextGroupPosition(),
             ],
         );
@@ -130,7 +135,7 @@ class ProductTypeBuilder
         $payload = array_filter(
             [
                 'attribute_group_id' => $attributeGroup->id,
-                'name' => $name !== null ? self::localized($name) : null,
+                'name' => $name !== null ? self::displayName($name) : null,
                 'type' => self::fieldTypeKey($type),
                 'searchable' => $searchable,
                 'filterable' => $filterable,
@@ -142,7 +147,7 @@ class ProductTypeBuilder
 
         if ($existing === null) {
             $payload += [
-                'name' => self::localized(Str::headline($handle)),
+                'name' => self::displayName(Str::headline($handle)),
                 'type' => FieldTypeEnum::Text->value,
                 'searchable' => true,
                 'filterable' => false,
@@ -161,13 +166,21 @@ class ProductTypeBuilder
         $attribute->models()->firstOrCreate(['model_type' => $modelType]);
 
         // Attach to this product type (idempotent) via product_type_attribute.
-        $this->type->mappedAttributes()->syncWithoutDetaching([$attribute->id]);
+        $this->type->attributeMapping()->syncWithoutDetaching([$attribute->id]);
 
         return $this;
     }
 
+    /**
+     * Detach the attribute from this type and strip its stored values from
+     * this type's products (or variants). The attribute row itself survives —
+     * other product types may still map it; use ProductSchema::dropAttribute()
+     * for a global drop.
+     */
     private function detachAndStrip(string $handle, string $modelType): self
     {
+        $handle = self::normalizeHandle($handle);
+
         $attribute = Attribute::query()
             ->where('handle', $handle)
             ->whereHas('models', fn ($query) => $query->where('model_type', $modelType))
@@ -177,7 +190,7 @@ class ProductTypeBuilder
             return $this;
         }
 
-        $this->type->mappedAttributes()->detach($attribute->id);
+        $this->type->attributeMapping()->detach($attribute->id);
 
         $isVariant = $modelType === ProductVariant::morphName();
 
@@ -196,24 +209,26 @@ class ProductTypeBuilder
 
     private function syncAttributesOfType(string $modelType, array $keep): self
     {
+        $keep = array_map(self::normalizeHandle(...), $keep);
+
         $keepIds = Attribute::query()
             ->whereIn('handle', $keep)
             ->whereHas('models', fn ($query) => $query->where('model_type', $modelType))
             ->pluck('id');
 
-        $currentIds = $this->type->mappedAttributes()
+        $currentIds = $this->type->attributeMapping()
             ->whereHas('models', fn ($query) => $query->where('model_type', $modelType))
             ->get()
             ->pluck('id');
 
         $toDetach = $currentIds->diff($keepIds);
         if ($toDetach->isNotEmpty()) {
-            $this->type->mappedAttributes()->detach($toDetach->all());
+            $this->type->attributeMapping()->detach($toDetach->all());
         }
 
         $toAttach = $keepIds->diff($currentIds);
         if ($toAttach->isNotEmpty()) {
-            $this->type->mappedAttributes()->syncWithoutDetaching($toAttach->all());
+            $this->type->attributeMapping()->syncWithoutDetaching($toAttach->all());
         }
 
         return $this;
@@ -232,16 +247,37 @@ class ProductTypeBuilder
     }
 
     /**
-     * Normalise a field-type reference to a v2 field-type key (e.g. `text`).
-     * Accepts a key as-is, or a FieldType class string (mapped to its key).
+     * Lunar v2 slugs attribute / group handles on assignment
+     * (`Str::slug($value, '_')`); apply the same rule up front so lookups by
+     * the handle the caller wrote match what Lunar actually stored.
      */
-    private static function fieldTypeKey(?string $type): ?string
+    public static function normalizeHandle(string $handle): string
+    {
+        return Str::slug($handle, '_');
+    }
+
+    /**
+     * Normalise a field-type reference to a v2 field-type key (e.g. `text`).
+     * Accepts a FieldTypeEnum case, a key as-is, or a FieldType class string
+     * (resolved through the FieldTypeManifest so custom types work too).
+     */
+    private static function fieldTypeKey(FieldTypeEnum|string|null $type): ?string
     {
         if ($type === null) {
             return null;
         }
 
-        return str_contains($type, '\\') ? Str::snake(class_basename($type)) : $type;
+        if ($type instanceof FieldTypeEnum) {
+            return $type->value;
+        }
+
+        if (! str_contains($type, '\\')) {
+            return $type;
+        }
+
+        $key = FieldTypeManifest::getTypes()->search(ltrim($type, '\\'));
+
+        return $key === false ? Str::snake(class_basename($type)) : (string) $key;
     }
 
     private static function nextGroupPosition(): int
@@ -250,11 +286,18 @@ class ProductTypeBuilder
     }
 
     /**
-     * @param  string|array<string,string>  $value
-     * @return array<string,string>
+     * Lunar v2 stores attribute / group names as plain strings. A locale-keyed
+     * array (the v1 shape) is still accepted for definition-file compatibility:
+     * the current locale wins, falling back to the first entry.
+     *
+     * @param string|array<string,string> $value
      */
-    private static function localized(string|array $value): array
+    private static function displayName(string|array $value): string
     {
-        return is_array($value) ? $value : [app()->getLocale() => $value];
+        if (is_string($value)) {
+            return $value;
+        }
+
+        return (string) ($value[app()->getLocale()] ?? reset($value) ?: '');
     }
 }

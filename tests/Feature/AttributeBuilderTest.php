@@ -35,16 +35,13 @@ class AttributeBuilderTest extends TestCase
         $this->assertTrue((bool) $attr->required);
     }
 
-    public function test_name_appends_locale_and_keeps_existing(): void
+    public function test_name_sets_display_name(): void
     {
-        ProductSchema::productType('t-shirts')
-            ->attribute('color', name: ['en' => 'Color']);
+        ProductSchema::productType('t-shirts')->attribute('color', name: 'Color');
 
-        ProductSchema::attribute('color')->name('Kolor', locale: 'pl');
+        ProductSchema::attribute('color')->name('Kolor');
 
-        $attr = Attribute::where('handle', 'color')->first();
-        $this->assertSame('Color', $attr->translate('name', 'en'));
-        $this->assertSame('Kolor', $attr->translate('name', 'pl'));
+        $this->assertSame('Kolor', Attribute::where('handle', 'color')->value('name'));
     }
 
     public function test_rename_updates_handle(): void
@@ -78,10 +75,7 @@ class AttributeBuilderTest extends TestCase
 
         $product = Product::factory()->create([
             'product_type_id' => $type->id,
-            'attribute_data' => collect([
-                'size' => new Text('M'),
-                'name' => new Text('My t-shirt'),
-            ]),
+            'attribute_data' => collect(['size' => new Text('M')]),
         ]);
 
         ProductSchema::attribute('size')->rename('dimensions');
@@ -90,6 +84,16 @@ class AttributeBuilderTest extends TestCase
         $this->assertFalse($data->has('size'));
         $this->assertTrue($data->has('dimensions'));
         $this->assertSame('M', (string) $data->get('dimensions'));
+    }
+
+    public function test_handle_lookup_uses_lunar_slug_rules(): void
+    {
+        ProductSchema::productType('t-shirts')->attribute('Lead-Time');
+
+        ProductSchema::attribute('lead-time')->filterable(true);
+
+        $this->assertDatabaseMissing('lunar_attributes', ['handle' => 'Lead-Time']);
+        $this->assertTrue((bool) Attribute::where('handle', 'lead_time')->value('filterable'));
     }
 
     public function test_constructor_throws_when_attribute_missing(): void
