@@ -6,7 +6,7 @@ namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Lunar\Models\ProductType;
+use Lunar\Core\Models\ProductType;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 
 class ApplyAndRollbackTest extends TestCase

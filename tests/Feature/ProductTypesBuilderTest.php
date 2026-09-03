@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
-use Lunar\Models\Attribute;
-use Lunar\Models\ProductType;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\ProductType;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 
@@ -43,7 +43,7 @@ class ProductTypesBuilderTest extends TestCase
         foreach (['t-shirts', 'shoes', 'bags'] as $handle) {
             $type = ProductType::where('handle', $handle)->first();
             $this->assertTrue(
-                $type->mappedAttributes()->where('attribute_id', $attr->id)->exists(),
+                $type->attributeMapping()->where('attribute_id', $attr->id)->exists(),
                 "expected '{$handle}' to be attached to color"
             );
         }
@@ -60,11 +60,11 @@ class ProductTypesBuilderTest extends TestCase
         $pattern = Attribute::where('handle', 'pattern')->first();
 
         $shoes = ProductType::where('handle', 'shoes')->first();
-        $this->assertTrue($shoes->mappedAttributes()->where('attribute_id', $color->id)->exists());
-        $this->assertFalse($shoes->mappedAttributes()->where('attribute_id', $pattern->id)->exists());
+        $this->assertTrue($shoes->attributeMapping()->where('attribute_id', $color->id)->exists());
+        $this->assertFalse($shoes->attributeMapping()->where('attribute_id', $pattern->id)->exists());
 
         $tshirts = ProductType::where('handle', 't-shirts')->first();
-        $this->assertTrue($tshirts->mappedAttributes()->where('attribute_id', $pattern->id)->exists());
+        $this->assertTrue($tshirts->attributeMapping()->where('attribute_id', $pattern->id)->exists());
     }
 
     public function test_only_does_not_mutate_original_builder(): void
@@ -79,7 +79,7 @@ class ProductTypesBuilderTest extends TestCase
         foreach (['t-shirts', 'shoes'] as $handle) {
             $this->assertTrue(
                 ProductType::where('handle', $handle)->first()
-                    ->mappedAttributes()->where('attribute_id', $color->id)->exists()
+                    ->attributeMapping()->where('attribute_id', $color->id)->exists()
             );
         }
     }
@@ -94,7 +94,7 @@ class ProductTypesBuilderTest extends TestCase
 
         foreach (['t-shirts', 'shoes'] as $handle) {
             $type = ProductType::where('handle', $handle)->first();
-            $this->assertFalse($type->mappedAttributes()->where('attribute_id', $color->id)->exists());
+            $this->assertFalse($type->attributeMapping()->where('attribute_id', $color->id)->exists());
         }
     }
 
@@ -108,7 +108,7 @@ class ProductTypesBuilderTest extends TestCase
 
         foreach (['t-shirts', 'shoes'] as $handle) {
             $handles = ProductType::where('handle', $handle)->first()
-                ->mappedAttributes()->pluck('handle')->all();
+                ->attributeMapping()->pluck('handle')->all();
             $this->assertSame(['color'], $handles);
         }
     }

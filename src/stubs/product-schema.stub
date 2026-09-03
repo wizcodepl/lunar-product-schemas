@@ -14,9 +14,9 @@ return new class extends Migration
         // ])
         //     ->attribute(
         //         handle: 'size',
-        //         name: ['en' => 'Size', 'pl' => 'Rozmiar'],
+        //         name: 'Size',
         //         group: 'specifications',
-        //         groupName: ['en' => 'Specifications', 'pl' => 'Specyfikacja'],
+        //         groupName: 'Specifications',
         //         filterable: true,
         //         required: true,
         //     );

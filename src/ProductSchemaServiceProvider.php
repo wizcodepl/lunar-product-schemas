@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace WizcodePl\LunarProductSchemas;
 
 use Illuminate\Support\ServiceProvider;
-use Lunar\Models\Product;
-use Lunar\Models\ProductVariant;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\Console\ApplyCommand;
 use WizcodePl\LunarProductSchemas\Console\MakeCommand;
 use WizcodePl\LunarProductSchemas\Console\RollbackCommand;

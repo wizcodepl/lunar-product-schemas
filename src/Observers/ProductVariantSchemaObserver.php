@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Observers;
 
-use Lunar\Models\ProductVariant;
+use Lunar\Core\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\Exceptions\MissingRequiredAttributeException;
 use WizcodePl\LunarProductSchemas\Exceptions\UnknownAttributeException;
 
@@ -18,9 +18,7 @@ class ProductVariantSchemaObserver
             return;
         }
 
-        $attributes = $type->mappedAttributes()
-            ->where('attribute_type', ProductVariant::morphName())
-            ->get(['handle', 'required']);
+        $attributes = $type->variantAttributes()->get();
 
         $allowed = $attributes->pluck('handle')->all();
         $data = $variant->attribute_data;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
-use Lunar\FieldTypes\Text;
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
+use Lunar\Core\FieldTypes\Text;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductType;
 use Spatie\Health\Enums\Status;
 use WizcodePl\LunarProductSchemas\Health\ProductSchemaHealthCheck;
 use WizcodePl\LunarProductSchemas\ProductSchema;

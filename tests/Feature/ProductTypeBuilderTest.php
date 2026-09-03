@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests\Feature;
 
-use Lunar\FieldTypes\Text;
-use Lunar\Models\Attribute;
-use Lunar\Models\AttributeGroup;
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
-use Lunar\Models\ProductVariant;
+use Lunar\Core\Enums\FieldTypeEnum;
+use Lunar\Core\FieldTypes\ListField;
+use Lunar\Core\FieldTypes\Text;
+use Lunar\Core\FieldTypes\TranslatedText;
+use Lunar\Core\Models\Attribute;
+use Lunar\Core\Models\AttributeGroup;
+use Lunar\Core\Models\Product;
+use Lunar\Core\Models\ProductType;
+use Lunar\Core\Models\ProductVariant;
 use WizcodePl\LunarProductSchemas\ProductSchema;
 use WizcodePl\LunarProductSchemas\Tests\TestCase;
 
@@ -53,10 +56,10 @@ class ProductTypeBuilderTest extends TestCase
     {
         ProductSchema::productType('t-shirts')->attribute('color');
 
-        $attr = Attribute::where('handle', 'color')->where('attribute_type', Product::morphName())->first();
+        $attr = Attribute::where('handle', 'color')->whereHas('models', fn ($q) => $q->where('model_type', Product::morphName()))->first();
 
         $this->assertNotNull($attr);
-        $this->assertSame(Text::class, $attr->type);
+        $this->assertSame(FieldTypeEnum::Text->value, $attr->type);
         $this->assertTrue((bool) $attr->searchable);
         $this->assertFalse((bool) $attr->filterable);
         $this->assertFalse((bool) $attr->required);
@@ -68,7 +71,7 @@ class ProductTypeBuilderTest extends TestCase
         $type = ProductSchema::productType('t-shirts')->attribute('color')->model();
         $attr = Attribute::where('handle', 'color')->first();
 
-        $this->assertTrue($type->mappedAttributes()->where('attribute_id', $attr->id)->exists());
+        $this->assertTrue($type->attributeMapping()->where('attribute_id', $attr->id)->exists());
     }
 
     public function test_attribute_attach_is_idempotent(): void
@@ -78,44 +81,89 @@ class ProductTypeBuilderTest extends TestCase
         $type = ProductType::where('handle', 't-shirts')->first();
         $attr = Attribute::where('handle', 'color')->first();
 
-        $this->assertSame(1, $type->mappedAttributes()->where('attribute_id', $attr->id)->count());
+        $this->assertSame(1, $type->attributeMapping()->where('attribute_id', $attr->id)->count());
     }
 
-    public function test_creates_attribute_group_with_localized_name(): void
+    public function test_creates_attribute_group_with_display_name(): void
     {
         ProductSchema::productType('t-shirts')->attribute(
             handle: 'size',
             group: 'specifications',
-            groupName: ['en' => 'Specifications', 'pl' => 'Specyfikacja'],
+            groupName: 'Specifications',
         );
 
         $group = AttributeGroup::where('handle', 'specifications')->first();
 
         $this->assertNotNull($group);
-        $this->assertSame('Specifications', $group->translate('name', 'en'));
-        $this->assertSame('Specyfikacja', $group->translate('name', 'pl'));
+        $this->assertSame('Specifications', $group->name);
     }
 
-    public function test_localized_string_name_uses_current_locale(): void
+    public function test_group_name_defaults_to_headline_of_handle(): void
+    {
+        ProductSchema::productType('t-shirts')->attribute('size', group: 'tech_specs');
+
+        $this->assertSame('Tech Specs', AttributeGroup::where('handle', 'tech_specs')->value('name'));
+    }
+
+    public function test_string_name_is_stored_as_is(): void
+    {
+        ProductSchema::productType('t-shirts')->attribute('color', name: 'Kolor');
+
+        $this->assertSame('Kolor', Attribute::where('handle', 'color')->value('name'));
+    }
+
+    /**
+     * Lunar v2 names are plain strings. The v1 locale-keyed array is still
+     * accepted so old definition files keep working: current locale wins.
+     */
+    public function test_locale_keyed_array_name_picks_current_locale(): void
     {
         $this->app->setLocale('pl');
 
-        ProductSchema::productType('t-shirts')->attribute('color', name: 'Kolor');
-
-        $attr = Attribute::where('handle', 'color')->first();
-        $this->assertSame('Kolor', $attr->translate('name', 'pl'));
-    }
-
-    public function test_localized_array_name_passes_through(): void
-    {
         ProductSchema::productType('t-shirts')->attribute(
             handle: 'color',
             name: ['en' => 'Color', 'pl' => 'Kolor'],
+            groupName: ['en' => 'Specifications', 'pl' => 'Specyfikacja'],
         );
 
-        $attr = Attribute::where('handle', 'color')->first();
-        $this->assertSame('Color', $attr->translate('name', 'en'));
-        $this->assertSame('Kolor', $attr->translate('name', 'pl'));
+        $this->assertSame('Kolor', Attribute::where('handle', 'color')->value('name'));
+        $this->assertSame('Specyfikacja', AttributeGroup::where('handle', 'spec')->value('name'));
+    }
+
+    public function test_locale_keyed_array_name_falls_back_to_first_entry(): void
+    {
+        $this->app->setLocale('de');
+
+        ProductSchema::productType('t-shirts')->attribute('color', name: ['en' => 'Color', 'pl' => 'Kolor']);
+
+        $this->assertSame('Color', Attribute::where('handle', 'color')->value('name'));
+    }
+
+    public function test_field_type_accepts_enum_key_and_class(): void
+    {
+        ProductSchema::productType('t-shirts')
+            ->attribute('a', type: FieldTypeEnum::Number)
+            ->attribute('b', type: 'toggle')
+            ->attribute('c', type: ListField::class)
+            ->attribute('d', type: TranslatedText::class);
+
+        $this->assertSame(FieldTypeEnum::Number->value, Attribute::where('handle', 'a')->value('type'));
+        $this->assertSame(FieldTypeEnum::Toggle->value, Attribute::where('handle', 'b')->value('type'));
+        $this->assertSame(FieldTypeEnum::ListField->value, Attribute::where('handle', 'c')->value('type'));
+        $this->assertSame(FieldTypeEnum::TranslatedText->value, Attribute::where('handle', 'd')->value('type'));
+    }
+
+    public function test_handles_are_slugged_like_lunar_does(): void
+    {
+        $type = ProductSchema::productType('t-shirts')
+            ->attribute('Lead-Time', group: 'Tech Specs')
+            ->model();
+
+        $attr = Attribute::where('handle', 'lead_time')->first();
+
+        $this->assertNotNull($attr);
+        $this->assertSame('tech_specs', $attr->group->handle);
+        $this->assertTrue($type->attributeMapping()->where('attribute_id', $attr->id)->exists());
     }
 
     public function test_tristate_flags_leave_existing_values_alone(): void
@@ -146,7 +194,7 @@ class ProductTypeBuilderTest extends TestCase
 
         $attr = Attribute::where('handle', 'color')->first();
         $this->assertNotNull($attr, 'attribute row itself is not deleted by per-type drop');
-        $this->assertFalse($type->mappedAttributes()->where('attribute_id', $attr->id)->exists());
+        $this->assertFalse($type->attributeMapping()->where('attribute_id', $attr->id)->exists());
     }
 
     public function test_drop_attribute_strips_value_from_this_types_products_only(): void
@@ -161,11 +209,11 @@ class ProductTypeBuilderTest extends TestCase
 
         $tshirtsProduct = Product::factory()->create([
             'product_type_id' => $tshirts->id,
-            'attribute_data' => collect(['color' => new Text('red'), 'name' => new Text('Tee')]),
+            'attribute_data' => collect(['color' => new Text('red')]),
         ]);
         $shoesProduct = Product::factory()->create([
             'product_type_id' => $shoes->id,
-            'attribute_data' => collect(['color' => new Text('blue'), 'name' => new Text('Sneakers')]),
+            'attribute_data' => collect(['color' => new Text('blue')]),
         ]);
 
         ProductSchema::productType('t-shirts')->dropAttribute('color');
@@ -180,7 +228,7 @@ class ProductTypeBuilderTest extends TestCase
 
         ProductSchema::productType('t-shirts')->dropAttribute('nope');
 
-        $this->assertSame(0, $type->mappedAttributes()->count());
+        $this->assertSame(0, $type->attributeMapping()->count());
     }
 
     public function test_sync_attributes_detaches_unlisted(): void
@@ -193,7 +241,7 @@ class ProductTypeBuilderTest extends TestCase
         ProductSchema::productType('t-shirts')->syncAttributes(['color', 'size']);
 
         $type = ProductType::where('handle', 't-shirts')->first();
-        $handles = $type->mappedAttributes()->pluck('handle')->all();
+        $handles = $type->attributeMapping()->pluck('handle')->all();
 
         $this->assertEqualsCanonicalizing(['color', 'size'], $handles);
     }
@@ -219,7 +267,7 @@ class ProductTypeBuilderTest extends TestCase
     {
         ProductSchema::productType('t-shirts')->attribute('description', configuration: ['richtext' => true]);
 
-        $config = Attribute::where('handle', 'description')->where('attribute_type', Product::morphName())->value('configuration');
+        $config = Attribute::where('handle', 'description')->whereHas('models', fn ($q) => $q->where('model_type', Product::morphName()))->value('configuration');
         $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
     }
 
@@ -227,7 +275,7 @@ class ProductTypeBuilderTest extends TestCase
     {
         ProductSchema::productType('t-shirts')->variantAttribute('variant_notes', configuration: ['richtext' => true]);
 
-        $config = Attribute::where('handle', 'variant_notes')->where('attribute_type', ProductVariant::morphName())->value('configuration');
+        $config = Attribute::where('handle', 'variant_notes')->whereHas('models', fn ($q) => $q->where('model_type', ProductVariant::morphName()))->value('configuration');
         $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
     }
 
@@ -236,7 +284,7 @@ class ProductTypeBuilderTest extends TestCase
         ProductSchema::productType('t-shirts')->attribute('description', configuration: ['richtext' => true]);
         ProductSchema::productType('t-shirts')->attribute('description', filterable: true);
 
-        $config = Attribute::where('handle', 'description')->where('attribute_type', Product::morphName())->value('configuration');
+        $config = Attribute::where('handle', 'description')->whereHas('models', fn ($q) => $q->where('model_type', Product::morphName()))->value('configuration');
         $this->assertSame(['richtext' => true], $config?->toArray() ?? $config);
     }
 }

@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace WizcodePl\LunarProductSchemas\Tests;
 
-use Cartalyst\Converter\Laravel\ConverterServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Kalnoy\Nestedset\NestedSetServiceProvider;
-use Laravel\Scout\ScoutServiceProvider;
-use Lunar\LunarServiceProvider;
-use Lunar\Models\Channel;
-use Lunar\Models\Currency;
-use Lunar\Models\Language;
-use Lunar\Models\TaxClass;
+use Lunar\Core\LunarServiceProvider;
+use Lunar\Core\Models\Channel;
+use Lunar\Core\Models\Currency;
+use Lunar\Core\Models\Language;
+use Lunar\Core\Models\TaxClass;
+use Lunar\Nestedset\NestedSetServiceProvider;
 
 use function Orchestra\Testbench\default_migration_path;
 use function Orchestra\Testbench\load_migration_paths;
@@ -21,28 +19,29 @@ use Orchestra\Testbench\TestCase as OrchestraTestCase;
 use Spatie\Activitylog\ActivitylogServiceProvider;
 use Spatie\LaravelBlink\BlinkServiceProvider;
 use Spatie\MediaLibrary\MediaLibraryServiceProvider;
+use Spatie\Permission\PermissionServiceProvider;
 use WizcodePl\LunarProductSchemas\ProductSchemaServiceProvider;
 
 abstract class TestCase extends OrchestraTestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Mirrors the provider set Lunar 2.x uses in its own core test suite
+     * (tests/core/TestCase.php upstream). Lunar v2 ships its own nestedset
+     * fork (`Lunar\Nestedset`) and pulls in spatie/laravel-permission.
+     */
     protected function getPackageProviders($app): array
     {
-        // Filter to providers whose classes are actually loadable. Lunar's
-        // optional deps shift between minor versions (e.g. 1.5-beta dropped
-        // cartalyst/converter and doctrine/dbal), and Testbench fatally errors
-        // if it tries to register a missing class.
-        return array_values(array_filter([
-            ConverterServiceProvider::class,
-            ActivitylogServiceProvider::class,
-            BlinkServiceProvider::class,
-            MediaLibraryServiceProvider::class,
-            ScoutServiceProvider::class,
-            NestedSetServiceProvider::class,
+        return [
             LunarServiceProvider::class,
+            MediaLibraryServiceProvider::class,
+            ActivitylogServiceProvider::class,
+            NestedSetServiceProvider::class,
+            BlinkServiceProvider::class,
+            PermissionServiceProvider::class,
             ProductSchemaServiceProvider::class,
-        ], static fn (string $class): bool => class_exists($class)));
+        ];
     }
 
     protected function defineEnvironment($app): void

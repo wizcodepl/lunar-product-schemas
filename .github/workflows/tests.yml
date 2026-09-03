@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, 2.x]
   pull_request:
-    branches: [main]
+    branches: [main, 2.x]
 
 jobs:
   sqlite:
@@ -14,15 +14,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Laravel 13 is excluded — Lunar 1.3 caps Laravel at ^12.
-        # Re-add when Lunar core opens up.
-        php: ['8.3', '8.4', '8.5']
-        laravel: ['11.*', '12.*']
+        # Lunar 2.x requires PHP ^8.4 and Laravel ^12 | ^13.
+        php: ['8.4', '8.5']
+        laravel: ['12.*', '13.*']
         include:
-          - laravel: '11.*'
-            testbench: '9.*'
           - laravel: '12.*'
             testbench: '10.*'
+          - laravel: '13.*'
+            testbench: '11.*'
 
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +43,7 @@ jobs:
         run: vendor/bin/phpunit
 
   mysql:
-    name: MySQL 8 · PHP 8.4 · Laravel 12
+    name: MySQL 8 · PHP 8.4 · Laravel 13
     runs-on: ubuntu-latest
 
     services:
@@ -82,7 +81,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer require "laravel/framework:12.*" "orchestra/testbench:10.*" --no-interaction --no-update
+          composer require "laravel/framework:13.*" "orchestra/testbench:11.*" --no-interaction --no-update
           composer update --prefer-stable --prefer-dist --no-interaction --no-progress --with-all-dependencies
 
       - name: Wait for MySQL
